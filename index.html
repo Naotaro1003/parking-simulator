@@ -1,0 +1,462 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>駐車練習シミュレーター</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: sans-serif;
+      background: #f3f5f7;
+      color: #222;
+    }
+
+    h1 { font-size: 22px; }
+    p { line-height: 1.6; }
+
+    .layout {
+      max-width: 700px;
+      margin: auto;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #e6e8eb;
+      border: 1px solid #bbb;
+      border-radius: 8px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    button {
+      padding: 14px 6px;
+      font-size: 16px;
+      font-weight: bold;
+      border: 1px solid #bbb;
+      border-radius: 10px;
+      background: white;
+      touch-action: none;
+      user-select: none;
+    }
+
+    button:active {
+      background: #dce8f8;
+    }
+
+    .drive {
+      background: #d9e9ff;
+    }
+
+    .stop {
+      background: #ffe0e0;
+    }
+
+    .status {
+      margin-top: 12px;
+      padding: 12px;
+      background: white;
+      border-radius: 8px;
+      line-height: 1.8;
+    }
+
+    .hint {
+      font-size: 14px;
+      color: #555;
+    }
+  </style>
+</head>
+
+<body>
+<div class="layout">
+  <h1>駐車練習シミュレーター</h1>
+  <p>オレンジ色の車を操作して、駐車スペースから出る動きを試しましょう。</p>
+
+  <svg id="parking" viewBox="0 0 600 650"
+       aria-label="上から見た駐車場">
+
+    <defs>
+      <g id="parkedCar">
+        <rect x="-28" y="-48" width="56" height="96"
+              rx="10" fill="#8795a5" stroke="#536170" stroke-width="2"/>
+        <rect x="-21" y="-30" width="42" height="25"
+              rx="5" fill="#cce0ed"/>
+        <rect x="-21" y="10" width="42" height="24"
+              rx="5" fill="#cce0ed"/>
+        <rect x="-31" y="-31" width="5" height="18" rx="2" fill="#333"/>
+        <rect x="26" y="-31" width="5" height="18" rx="2" fill="#333"/>
+        <rect x="-31" y="19" width="5" height="18" rx="2" fill="#333"/>
+        <rect x="26" y="19" width="5" height="18" rx="2" fill="#333"/>
+      </g>
+    </defs>
+
+    <!-- 駐車場全体 -->
+    <rect width="600" height="650" fill="#d9dde1"/>
+
+    <!-- 駐車スペース -->
+    <rect x="0" y="0" width="600" height="230" fill="#c8cdd2"/>
+    <rect x="0" y="420" width="600" height="230" fill="#c8cdd2"/>
+
+    <!-- 車路 -->
+    <rect x="0" y="230" width="600" height="190" fill="#7da9d5"/>
+    <text x="300" y="270" text-anchor="middle"
+          font-size="17" fill="#fff">車路</text>
+
+    <!-- 駐車枠 -->
+    <g stroke="#fff" stroke-width="3" fill="none">
+      <path d="M20 0 V230 M160 0 V230 M300 0 V230
+               M440 0 V230 M580 0 V230"/>
+      <path d="M20 420 V650 M160 420 V650 M300 420 V650
+               M440 420 V650 M580 420 V650"/>
+    </g>
+
+    <!-- 上側の駐車車両：車の前方は上 -->
+    <use href="#parkedCar" x="90" y="125"
+         transform="rotate(180 90 125)"/>
+    <use href="#parkedCar" x="230" y="125"
+         transform="rotate(180 230 125)"/>
+    <use href="#parkedCar" x="370" y="125"
+         transform="rotate(180 370 125)"/>
+    <use href="#parkedCar" x="510" y="125"
+         transform="rotate(180 510 125)"/>
+
+    <!-- 下側の周囲の車 -->
+    <use href="#parkedCar" x="90" y="535"/>
+    <use href="#parkedCar" x="230" y="535"/>
+    <use href="#parkedCar" x="510" y="535"/>
+
+    <!-- 後退方向の目安 -->
+    <path d="M370 430 L370 390"
+          stroke="#fff" stroke-width="4"
+          stroke-dasharray="6 5" fill="none"/>
+    <path d="M360 400 L370 388 L380 400"
+          stroke="#fff" stroke-width="4"
+          fill="none"/>
+
+    <!-- 操作するオレンジ色の車 -->
+    <g id="playerCar" transform="translate(370 535)">
+      <g id="carBody">
+        <rect x="-28" y="-48" width="56" height="96"
+              rx="10" fill="#f39b36"
+              stroke="#9b5713" stroke-width="3"/>
+        <rect x="-21" y="-30" width="42" height="25"
+              rx="5" fill="#d5e8f2" stroke="#9b5713"/>
+        <rect x="-21" y="10" width="42" height="24"
+              rx="5" fill="#d5e8f2" stroke="#9b5713"/>
+        <rect x="-31" y="-31" width="5" height="18"
+              rx="2" fill="#333"/>
+        <rect x="26" y="-31" width="5" height="18"
+              rx="2" fill="#333"/>
+        <rect x="-31" y="19" width="5" height="18"
+              rx="2" fill="#333"/>
+        <rect x="26" y="19" width="5" height="18"
+              rx="2" fill="#333"/>
+        <!-- 車の前方を示す印 -->
+        <path d="M-10 42 L0 48 L10 42"
+              stroke="#8c4b0d" stroke-width="3" fill="none"/>
+      </g>
+     
+      <!-- 車体の前方を示す目印 -->
+      <line x1="0" y1="48" x2="0" y2="78"
+            stroke="#16834a" stroke-width="4"
+            stroke-linecap="round"/>
+
+      <!-- 車体の後方を示す目印 -->
+      <line x1="0" y1="-48" x2="0" y2="-78"
+            stroke="#c62828" stroke-width="4"
+            stroke-linecap="round"/>
+    </g>
+
+    <text x="370" y="600" text-anchor="middle"
+          font-size="16" fill="#333">操作する車</text>
+  </svg>
+
+  <div class="controls">
+    <button id="left">↶ 左に切る</button>
+    <button id="forward" class="drive">▲ 前進</button>
+    <button id="right">右に切る ↷</button>
+    <button id="reset" class="stop">位置をリセット</button>
+    <button id="reverse" class="drive">▼ 後退</button>
+    <button id="straight">ハンドルを戻す</button>
+  </div>
+  
+
+   
+  <div style="margin-top:12px; padding:12px; background:white; border-radius:8px;">
+    <label for="steeringSlider">
+      <strong>ハンドル角度</strong>
+    </label>
+
+    <div style="display:flex; align-items:center; gap:12px; margin-top:10px;">
+      <span>左</span>
+      <input
+        id="steeringSlider"
+        type="range"
+        min="-100"
+        max="100"
+        value="0"
+        step="5"
+        style="flex:1;"
+      />
+      <span>右</span>
+    </div>
+
+    <p style="margin-bottom:0;">
+      現在の角度：
+      <strong id="steeringValue">0°</strong>
+    </p>
+  </div>
+
+  <div class="status">
+    <div>操作：<strong id="direction">停止中</strong></div>
+    <div>ハンドル：<strong id="steering">中央</strong></div>
+    <div>車体の向き：<strong id="bodyAngle">0°</strong></div>
+    <div class="hint">
+        前進・後退ボタンを押している間、車が動きます。
+        左右のボタンを押すとハンドルを切ります。
+    </div>
+   </div> 
+<div id="warning" role="status" style="margin-top:10px; font-weight:bold; color:#26733b;">
+  周囲の車との距離を確認しています。
+</div>
+</div>
+
+</div>
+
+<script>
+  const car = document.getElementById("playerCar");
+  const directionText = document.getElementById("direction");
+  const steeringText = document.getElementById("steering");
+
+  // 車の位置と向き
+  const start = { x: 370, y: 535, angle: 0 };
+  let x = start.x;
+  let y = start.y;
+  let angle = start.angle;
+
+  // 操作状態
+  let movement = 0;  // 前進=1、後退=-1、停止=0
+  let steering = 0;  // 左=-1、中央=0、右=1
+
+  // 簡易的な車両モデルの設定
+  const wheelbase = 65;
+  const speed = 1.5;
+  const maxSteeringAngle = 28 * Math.PI / 180;
+
+  
+  // 周囲に駐車されている車の中心座標
+  const otherCars = [
+    { x: 90, y: 125 },
+    { x: 230, y: 125 },
+    { x: 370, y: 125 },
+    { x: 510, y: 125 },
+    { x: 90, y: 535 },
+    { x: 230, y: 535 },
+    { x: 510, y: 535 }
+  ];
+
+  const warningElement = document.getElementById("warning");
+
+  function checkDistance() {
+    let nearestDistance = Infinity;
+
+    for (const other of otherCars) {
+      const dx = x - other.x;
+      const dy = y - other.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      nearestDistance = Math.min(nearestDistance, distance);
+    }
+
+    if (nearestDistance <= 100) {
+      warningElement.textContent = "🚨 接触の可能性があります！停止します。";
+      warningElement.style.color = "#c62828";
+      movement = 0;
+    } else if (nearestDistance <= 130) {
+      warningElement.textContent = "⚠️ 周囲の車に接近しています。";
+      warningElement.style.color = "#b26a00";
+    } else {
+      warningElement.textContent = "✓ 周囲の車から距離があります。";
+      warningElement.style.color = "#26733b";
+    }
+  }
+
+
+
+  function updateDisplay() {
+    car.setAttribute(
+      "transform",
+      `translate(${x} ${y}) rotate(${-angle * 180 / Math.PI})`
+    );
+    document.getElementById("bodyAngle").textContent =
+    `${Math.round(angle * 180 / Math.PI)}°`;
+
+    directionText.textContent =
+      movement === 1 ? "前進中" :
+      movement === -1 ? "後退中" : "停止中";
+
+    
+    const angleDegrees = Math.round(steering * 28);
+
+    steeringText.textContent =
+      angleDegrees === 0 ? "中央（0°）" :
+      `${angleDegrees}°`;
+
+    document.getElementById("steeringValue").textContent =
+      `${angleDegrees}°`;
+
+    document.getElementById("steeringSlider").value =
+      Math.round(steering * 100);
+  }
+
+  function stop() {
+    movement = 0;
+    updateDisplay();
+  }
+
+  // 押している間だけ動かすボタン
+  function holdButton(id, action) {
+    const button = document.getElementById(id);
+
+    button.addEventListener("pointerdown", event => {
+      event.preventDefault();
+      button.setPointerCapture(event.pointerId);
+      action(true);
+    });
+
+    function release() {
+      action(false);
+    }
+
+    button.addEventListener("pointerup", release);
+    button.addEventListener("pointercancel", release);
+    button.addEventListener("lostpointercapture", release);
+  }
+
+  holdButton("forward", pressed => {
+    movement = pressed ? 1 : 0;
+    updateDisplay();
+  });
+
+  holdButton("reverse", pressed => {
+    movement = pressed ? -1 : 0;
+    updateDisplay();
+  });
+
+ document.getElementById("left").addEventListener("click", () => {
+  steering = -1;
+  updateDisplay();
+});
+
+document.getElementById("right").addEventListener("click", () => {
+  steering = 1;
+  updateDisplay();
+});
+  
+  document.getElementById("steeringSlider").addEventListener("input", event => {
+    steering = Number(event.target.value) / 100;
+    updateDisplay();
+  });
+
+  document.getElementById("straight").addEventListener("click", () => {
+    steering = 0;
+    updateDisplay();
+  });
+
+  document.getElementById("reset").addEventListener("click", () => {
+    x = start.x;
+    y = start.y;
+    angle = start.angle;
+    movement = 0;
+    steering = 0;
+    updateDisplay();
+  });
+
+  // 一定間隔で車両の位置と向きを計算
+  
+
+function animate() {
+  if (movement !== 0) {
+    const steeringAngle = steering * maxSteeringAngle;
+    const distance = movement * speed;
+
+    // 車体の向きが1回の移動で変化する角度
+    const deltaAngle =
+      (distance / wheelbase) * Math.tan(steeringAngle);
+
+    // 移動の中間時点での向きを使って位置を計算
+    const middleAngle = angle + deltaAngle / 2;
+
+    const nextX = x + distance * Math.sin(middleAngle);
+    const nextY = y + distance * Math.cos(middleAngle);
+    const nextAngle = angle + deltaAngle;
+
+    // 画面外へ出ないようにする
+    const insideBounds =
+      nextX >= 35 && nextX <= 565 &&
+      nextY >= 55 && nextY <= 595;
+
+    // 移動先が周囲の車に近すぎないか確認
+    const collision = otherCars.some(other => {
+      const dx = nextX - other.x;
+      const dy = nextY - other.y;
+      return Math.hypot(dx, dy) < 112;
+    });
+
+    if (!insideBounds || collision) {
+      movement = 0;
+
+      warningElement.textContent = collision
+        ? "🚨 接近したため停止しました。"
+        : "駐車場の範囲外には進めません。";
+
+      warningElement.style.color = "#c62828";
+    } else {
+      x = nextX;
+      y = nextY;
+      angle = nextAngle;
+
+      // 最も近い周囲の車との距離を確認
+      let nearestDistance = Infinity;
+
+      for (const other of otherCars) {
+        const d = Math.hypot(x - other.x, y - other.y);
+        nearestDistance = Math.min(nearestDistance, d);
+      }
+
+      if (nearestDistance <= 145) {
+        warningElement.textContent =
+          "⚠️ 周囲の車に接近しています。";
+        warningElement.style.color = "#b26a00";
+      } else {
+        warningElement.textContent =
+          "✓ 周囲の車から距離があります。";
+        warningElement.style.color = "#26733b";
+      }
+    }
+
+    updateDisplay();
+  }
+
+  requestAnimationFrame(animate);
+}
+
+
+
+  updateDisplay();
+  animate();
+</script>
+</body>
+</html>
