@@ -86,11 +86,22 @@ button.selected{outline:3px solid #f5c45b}
 
   <section class="toolbar">
     
-    <label for="parkStyle">駐車の向き</label>
+    <label for="parkStyle">場面</label>
     <select id="parkStyle">
-      <option value="front">前向き駐車（バックで出庫）</option>
-      <option value="back">後ろ向き駐車（前進で出庫）</option>
+      <optgroup label="出庫（駐車枠から出る）">
+        <option value="front">前向き駐車（バックで出庫）</option>
+        <option value="back">後ろ向き駐車（前進で出庫）</option>
+      </optgroup>
+      <optgroup label="入庫（車路から駐車枠に入る）">
+        <option value="enter">入庫（車路から駐車枠に入る）</option>
+      </optgroup>
+      <optgroup label="縦列駐車">
+        <option value="paraIn">縦列駐車：入庫（前後の車の間に入る）</option>
+        <option value="paraOut">縦列駐車：出庫（前後の車の間から出る）</option>
+      </optgroup>
     </select>
+    <label id="gapBox" hidden style="display:none;align-items:center;gap:6px">空きスペースの長さ
+      <input type="number" id="gapLen" min="4.8" max="10" step="0.1" value="6.0" style="width:68px"> m</label>
     <div class="mode-note" id="modeNote">ハンドルを回して前進・バックで動かすか、「手順を入力して走らせる」に距離とハンドル角を打ち込んで走らせます。</div>
   </section>
 
@@ -132,11 +143,11 @@ button.selected{outline:3px solid #f5c45b}
           </g>
         </defs>
         <rect id="bgRect" width="560" height="600" fill="#bcbcbc"/>
-        <rect x="0" y="0" width="560" height="200" fill="#bcbcbc"/>
+        <rect id="topRow" x="0" y="0" width="560" height="200" fill="#bcbcbc"/>
         <rect id="bottomRow" x="0" y="400" width="560" height="200" fill="#bcbcbc"/>
         <rect id="roadRect" x="0" y="200" width="560" height="200" fill="#a6a6a6"/>
         <g stroke="#fff" stroke-width="4">
-          <path d="M30 0V200 M130 0V200 M230 0V200 M330 0V200 M430 0V200 M530 0V200" />
+          <path id="topLines" d="M30 0V200 M130 0V200 M230 0V200 M330 0V200 M430 0V200 M530 0V200" />
           <path id="bottomLines" d="M30 400V600 M130 400V600 M230 400V600 M330 400V600 M430 400V600 M530 400V600" />
         </g>
         <!-- 上側5台。中央（左から3台目）が操作対象車。左右2台ずつが周囲の車 -->
@@ -173,7 +184,8 @@ button.selected{outline:3px solid #f5c45b}
         <g id="resizeHandles"><circle id="resizeHandle" class="resize-handle" r="10" cx="280" cy="100"/></g>
         <text id="roadLabel" x="280" y="300" text-anchor="middle" fill="#fff" font-size="13">車路</text>
         <path id="roadArrow" d="M280 312V362 M272 353L280 362L288 353" stroke="#fff" stroke-width="3" fill="none" stroke-dasharray="6 5"/>
-        <text x="180" y="207" text-anchor="middle" fill="#fff" font-size="12">操作対象車</text>
+        <line id="kerbLine" x1="0" x2="560" y1="200" y2="200" stroke="#fff" stroke-width="5" display="none"/>
+        <text id="slotLabel" x="280" y="207" text-anchor="middle" fill="#fff" font-size="12">操作対象車</text>
         <polyline id="trajectory" points="" fill="none" stroke="#ffe46b" stroke-width="3" stroke-dasharray="5 4"/>
         <!-- 車路の下端（反対側の駐車列との境界）。ドラッグで車路幅を変更 -->
         <g id="roadEdge" style="cursor:ns-resize;touch-action:none">
@@ -267,14 +279,30 @@ const parking = document.getElementById('parking');
 const trajectory = document.getElementById('trajectory');
 // start.x/start.y は「車体の幾何学的中心」。上段左右の車と同じ y=100。
 // 前向き駐車：車の前方が枠の奥（上）向き＝π。後ろ向き駐車：前方が車路側（下）向き＝0（周囲の上段の車と同じ向き）。
-const START_ANGLE={front:Math.PI, back:0};
-const VIEW_W=560;   // 図の幅（SVG単位）。駐車枠は幅100（2.5m）×5列＋左右の余白
+const START_ANGLE={front:Math.PI, back:0, enter:Math.PI/2, paraIn:Math.PI, paraOut:Math.PI};
+// 入庫：操作対象車の枠(x=280)は空き。車は車路を右向きに走ってきて、枠の手前（左）で止まった状態から始める。
+//  枠の手前に止まった状態から、前進で切り込んでも、前進で通り過ぎてからバックで入れてもよい。
+const isEnter=()=>parkStyle.value==='enter';
+// 縦列駐車：縦長の図。左の歩道に沿って車が縦に並び、前（上）方向へ走る。縁石は x=PARA_KX。
+var paraMode=false;   // 初期化中に参照されるので var（applyScene が更新）
+const isPara=()=>paraMode;
+const PARA_H=800, PARA_SW=100, PARA_KX=100, PARA_X=148;   // 図の高さ、歩道の幅、縁石のX、駐車車両の中心X（縁石から約30cm離す）
+let gapLen=6.0;                             // 空きスペースの長さ(m)
+// 添字0＝後ろの車（下）／添字1＝前の車（上）。車はすべて上向き(π)。
+const paraNeighbours=()=>{const h=gapLen*SCALE/2;return [PARA_H/2+h+90,PARA_H/2-h-90];};
+function startPoseFor(style){
+  if(style==='enter')return {x:110,y:ROAD_TOP+roadH*0.45,angle:Math.PI/2};
+  if(style==='paraOut')return {x:PARA_X,y:PARA_H/2,angle:Math.PI};
+  if(style==='paraIn')return {x:PARA_X+72+40,y:paraNeighbours()[1],angle:Math.PI};   // 前（上）の車の真横に1m離して止まる
+  return {x:280,y:100,angle:START_ANGLE[style]};
+}
+let VIEW_W=560;   // 図の幅（SVG単位）。駐車枠は幅100（2.5m）×5列＋左右の余白
 const start = {x:280, y:100, angle:START_ANGLE.front};
 let angle=start.angle;
 const SCALE=40;
-const ROAD_TOP=200, ROW_H=200, ROAD_MIN=120, ROAD_MAX=320; // 車路上端のY、駐車列の高さ、車路幅の下限/上限（SVG単位。40単位=1m）
+const ROAD_TOP=200, ROW_H=200; let ROAD_MIN=120, ROAD_MAX=320; // 車路上端のY、駐車列の高さ、車路幅の下限/上限（SVG単位。40単位=1m）
 let roadH=200; // 現在の車路幅（SVG単位）
-function svgHeight(){return ROAD_TOP+roadH+ROW_H;}
+function svgHeight(){return paraMode?PARA_H:ROAD_TOP+roadH+ROW_H;}
 const WB_MIN=1.5, WB_MAX=4.5, OH_MIN=0.2, OH_MAX=2.0, LEN_MIN=3.0, LEN_MAX=6.5; // タイヤ位置・全長の許容範囲(m)
 const WHEELBASE_RATIO=0.6; // 周囲の車のタイヤ間隔（全長に対する比率）に合わせる
 const DEFAULT_VEHICLE={length:4.5,width:1.8,wheelbase:2.7,frontOverhang:0.9,rearOverhang:0.9}; // サイズリセット用の初期値
@@ -341,6 +369,7 @@ function rectanglesOverlap(a,b){
 function collisionAt(cx,cy,a,margin=0){
   const corners=carCorners(cx,cy,a);
   if(corners.some(p=>p.x<0||p.x>VIEW_W||p.y<0||p.y>svgHeight())) return 'boundary';
+  if(paraMode){ if(corners.some(p=>p.x<PARA_KX||p.x>PARA_KX+roadH)) return 'boundary'; }
   // margin>0：車体を全周これだけ(SVG単位。1単位=2.5cm)広げて、周囲の車とのすきまを確かめる
   const test=margin>0?(()=>{const g=vehicleGeometry();return carCorners(cx,cy,a,{halfWidth:g.halfWidth+margin,front:g.front+margin,rear:g.rear+margin});})():corners;
   for(const c of otherCars){ if(rectanglesOverlap(test,parkedCarCorners(c.x,c.y,c.angle,c))) return 'car'; }
@@ -430,6 +459,7 @@ function updateDisplay(){
   for(const id of ['parkWheelRL','parkWheelRR']) document.getElementById(id).setAttribute('y',parkedWheelRearY);
   for(const id of ['parkWheelFL','parkWheelFR']) document.getElementById(id).setAttribute('y',parkedWheelFrontY);
   // 周囲の各車の寸法を個別に描画。選択した車の黄色いハンドルを更新する。
+  for(let i=0;i<9;i++){const v=document.getElementById(`parkedVisual${i}`);if(v)v.style.display=i<otherCars.length?'':'none';}
   otherCars.forEach((c,i)=>{
     const visual=document.getElementById(`parkedVisual${i}`);
     const sx=(c.width*SCALE)/72, sy=(c.length*SCALE)/180;
@@ -526,7 +556,7 @@ function step(dt){
   const collision=collisionAt(nx,ny,na);
   if(collision){
     movement=0;
-    warn(collision==='car'?'⚠ 車体が周囲の車と接触する位置に達したため停止しました。':'⚠ 車体が駐車場の表示範囲を越えるため停止しました。','#c62828');
+    warn(collision==='car'?'⚠ 車体が周囲の車と接触する位置に達したため停止しました。':(isPara()?'⚠ 縁石（道路の端）に達するため停止しました。':'⚠ 車体が駐車場の表示範囲を越えるため停止しました。'),'#c62828');
   }else{
     rearX=nx;rearY=ny;angle=na;
     if(near<145) warn('注意：周囲の車に接近しています（距離表示は概算）。','#b26a00');
@@ -569,11 +599,44 @@ function resetPose(){
 }
 // 駐車の向きを切り替える。サイズは保ったまま、駐車枠の中央・新しい向きに置き直す。
 const parkStyle=document.getElementById('parkStyle');
+let savedPerp=null, lastPara=false;
+function layoutPara(){   // 縦列駐車の前後の車を置く（空きスペース長に合わせる）
+  const [xl,xr]=paraNeighbours();
+  [xl,xr].forEach((y,i)=>{const c=otherCars[i];c.x=PARA_X;c.y=y;c.angle=Math.PI;});
+}
+function applyScene(){
+  const para=parkStyle.value==='paraIn'||parkStyle.value==='paraOut';paraMode=para;
+  if(para!==lastPara){
+    if(para){
+      savedPerp=otherCars.map(c=>({...c}));
+      const w=savedPerp[0].width,l=savedPerp[0].length;
+      otherCars.length=0;otherCars.push({x:0,y:0,angle:0,width:w,length:l},{x:0,y:0,angle:0,width:w,length:l});
+      ROAD_MIN=160;ROAD_MAX=320;roadH=240;VIEW_W=2*PARA_SW+roadH;
+    }else{
+      otherCars.length=0;otherCars.push(...savedPerp);
+      VIEW_W=560;ROAD_MIN=120;ROAD_MAX=320;roadH=200;
+    }
+    lastPara=para;selectedCar='player';
+    for(const id of ['topLines','bottomLines'])document.getElementById(id).style.display=para?'none':'';
+    for(const id of ['topRow','bottomRow'])document.getElementById(id).setAttribute('fill',para?'#c9c4b6':'#bcbcbc');
+    document.getElementById('kerbLine').setAttribute('display',para?'':'none');
+  }
+  if(para)layoutPara();
+  const gb=document.getElementById('gapBox');gb.hidden=!para;gb.style.display=para?'flex':'none';
+  Object.assign(start,startPoseFor(parkStyle.value));
+  const sl=document.getElementById('slotLabel');
+  sl.textContent=parkStyle.value==='enter'?'入庫先（空き枠）':parkStyle.value==='paraIn'?'入庫先':'操作対象車';
+  sl.setAttribute('y',para?PARA_H/2:207);sl.setAttribute('x',para?PARA_SW/2:280);
+  resetPose();applyRoad();
+}
 parkStyle.addEventListener('change',()=>{
-  start.angle=START_ANGLE[parkStyle.value];
-  resetPose();
-  warn(parkStyle.value==='front'?'前向き駐車の状態にしました。バックで出庫します。':'後ろ向き駐車の状態にしました。前進で出庫します。','#26733b');
+  applyScene();
+  warn({front:'前向き駐車の状態にしました。バックで出庫します。',back:'後ろ向き駐車の状態にしました。前進で出庫します。',enter:'入庫の場面です。車路から、中央の空き枠に入れてください（前進で入る・前進してからバックで入れる、どちらも試せます）。',paraIn:'縦列駐車の入庫です。前の車の真横から、バックで前後の車の間に入れてください。',paraOut:'縦列駐車の出庫です。前後の車の間から、車路へ出てください。'}[parkStyle.value],'#26733b');
   updateDisplay();
+});
+document.getElementById('gapLen').addEventListener('change',e=>{
+  gapLen=Math.max(4.8,Math.min(10,parseFloat(e.target.value)||6));e.target.value=gapLen.toFixed(1);
+  if(isPara()){layoutPara();Object.assign(start,startPoseFor(parkStyle.value));resetPose();updateDisplay();}
 });
 // ハンドルをドラッグして回す。回転角は左右最大28度に対応
 let dragging=false, previousPointerAngle=0;
@@ -619,7 +682,7 @@ let sim={start:null,samples:[]};   // steps を走らせた結果
 let stepView=false;   // true の間は、車の位置を「手順の再現・位置スライダー」が決める（手動で動かすと false に戻る）
 let scrubPos=0, replay=null, chartDirty=true, chartCursor=-1;
 const originPose=()=>{const r=rearAxleForBodyCenter(start.x,start.y,start.angle);return {x:r.x,y:r.y,a:start.angle};};
-const exitGear=()=>parkStyle.value==='front'?-1:1;       // 前向き駐車ならバックで出る
+const exitGear=()=>({front:-1,back:1,enter:1,paraIn:-1,paraOut:-1})[parkStyle.value];   // 出庫は前向き駐車ならバック／入庫は入り方の向き
 const steerOf=w=>clamp(w/(params.lockToLock/2),-1,1)*params.maxSteeringAngle*Math.PI/180;
 const wheelDeg=steer=>steer/(params.maxSteeringAngle*Math.PI/180)*(params.lockToLock/2);
 function setPose(p){   // p=0: 出発位置、p=k: k 番目のサンプル
@@ -681,7 +744,7 @@ function stepReplay(){
 function reportResult(){
   const cs=contactSummary(sim.samples);
   if(cs.ep)warn(`⚠ この手順だと、周囲の車と ${cs.ep} 回接触します（最初は約 ${cs.first.toFixed(1)} m 地点）。`,'#c62828');
-  else if(sim.out)warn('⚠ この手順だと、表示範囲の外へ出てしまいます。','#c62828');
+  else if(sim.out)warn(isPara()?'⚠ この手順だと、縁石（道路の端）に出てしまいます。':'⚠ この手順だと、表示範囲の外へ出てしまいます。','#c62828');
   else warn('✅ この手順で、最後まで接触せずに走行できました。','#26733b');
 }
 // ---- グラフ ----
@@ -735,11 +798,34 @@ function renderSummary(){
   if(!steps.length){box.innerHTML='';return;}
   const {len,sw}=stepStats(steps,S), cs=contactSummary(S);
   if(sim.clr===undefined)sim.clr=pathClearance(S);
-  const fin=S.length?S[S.length-1].a:originPose().a, par=Math.abs(Math.abs(wrapA(fin))*180/Math.PI-90);
+  const fin=S.length?S[S.length-1].a:originPose().a, par=isPara()?(()=>{const d=Math.abs(wrapA(fin))*180/Math.PI;return Math.min(d,180-d);})():Math.abs(Math.abs(wrapA(fin))*180/Math.PI-90);
   const lines=[];
   if(cs.ep)lines.push(`<div style="padding:6px 8px;background:#ffebee;border-radius:6px;color:#c62828;font-weight:700">⚠ 他の車との接触 ${cs.ep} 回（最初は約 ${cs.first.toFixed(1)} m 地点）</div>`);
-  if(sim.out)lines.push(`<div style="padding:6px 8px;background:#ffebee;border-radius:6px;color:#c62828;font-weight:700">⚠ 表示範囲の外へ出るため、そこから先は走らせていません</div>`);
+  if(sim.out)lines.push(`<div style="padding:6px 8px;background:#ffebee;border-radius:6px;color:#c62828;font-weight:700">⚠ ${isPara()?'縁石（道路の端）':'表示範囲の外'}に出るため、そこから先は走らせていません</div>`);
   if(!cs.ep&&!sim.out&&S.length)lines.push(`<div style="padding:6px 8px;background:#f0f7ef;border-radius:6px">✅ 接触なし／${clearanceText(sim.clr)}</div>`);
+  if(parkStyle.value==='paraIn'&&S.length&&!sim.out&&otherCars.length>=2){
+    const l=S[S.length-1], cc=carCorners(l.x,l.y,l.a);
+    const Ly=otherCars[0].y-otherCars[0].length*SCALE/2, Fy=otherCars[1].y+otherCars[1].length*SCALE/2;   // 後ろの車の前端／前の車の後端
+    const minY=Math.min(...cc.map(q=>q.y)), maxY=Math.max(...cc.map(q=>q.y)), minX=Math.min(...cc.map(q=>q.x));
+    const back=(Ly-maxY)/SCALE*100, front=(minY-Fy)/SCALE*100, kerb=(minX-PARA_KX)/SCALE*100;
+    const inGap=back>=0&&front>=0;
+    lines.push(inGap?`<div style="padding:6px 8px;background:#f0f7ef;border-radius:6px">🅿 前後の車の間に入っています（後ろの車まで 約${back.toFixed(0)}cm／前の車まで 約${front.toFixed(0)}cm／縁石まで 約${kerb.toFixed(0)}cm／道路との角度差 約${par.toFixed(0)}°）</div>`
+      :`<div style="padding:6px 8px;background:#fff8e1;border-radius:6px;color:#8a5a00;font-weight:700">🅿 まだ前後の車の間に収まっていません（縁石まで 約${kerb.toFixed(0)}cm／角度差 約${par.toFixed(0)}°）</div>`);
+  }
+  if(parkStyle.value==='paraOut'&&S.length&&!sim.out&&otherCars.length>=2){
+    const l=S[S.length-1], cc=carCorners(l.x,l.y,l.a), minX=Math.min(...cc.map(q=>q.x)), maxY=Math.max(...cc.map(q=>q.y));
+    const Fy=otherCars[1].y+otherCars[1].length*SCALE/2;
+    const outOfSlot=maxY<=Fy||minX>=PARA_X+otherCars[0].width*SCALE/2+4;   // 前の車より前に出た、または車の列の外側に出た
+    lines.push(`<div style="padding:6px 8px;background:${outOfSlot?'#f0f7ef':'#f4f6f9'};border-radius:6px">${outOfSlot?'🚗 前後の車の列から出ています':'🚗 まだ前後の車の列の中にいます'}（縁石まで 約${((minX-PARA_KX)/SCALE*100).toFixed(0)}cm／道路との角度差 約${par.toFixed(0)}°）</div>`);
+  }
+  if(isEnter()&&S.length&&!sim.out){
+    const l=S[S.length-1], cc=carCorners(l.x,l.y,l.a), L=230, R=330;
+    const minX=Math.min(...cc.map(q=>q.x)), maxX=Math.max(...cc.map(q=>q.x)), maxY=Math.max(...cc.map(q=>q.y));
+    const sideL=(minX-L)/SCALE*100, sideR=(R-maxX)/SCALE*100, outY=(maxY-ROAD_TOP)/SCALE*100;
+    const inside=sideL>=0&&sideR>=0&&outY<=0;
+    lines.push(inside?`<div style="padding:6px 8px;background:#f0f7ef;border-radius:6px">🅿 枠内に収まっています（左右の余裕 左 約${sideL.toFixed(0)}cm／右 約${sideR.toFixed(0)}cm、車路側へのはみ出しなし）</div>`
+      :`<div style="padding:6px 8px;background:#fff8e1;border-radius:6px;color:#8a5a00;font-weight:700">🅿 枠に収まっていません（${sideL<0?`左へ約${(-sideL).toFixed(0)}cm `:''}${sideR<0?`右へ約${(-sideR).toFixed(0)}cm `:''}${outY>0?`車路側へ約${outY.toFixed(0)}cm `:''}はみ出し）</div>`);
+  }
   box.innerHTML=lines.join('')+`<div class="small" style="margin-top:6px">合計 ${len.toFixed(1)} m／前進・バックの切り替え ${sw} 回／最後の車の向きは車路との差 約${par.toFixed(0)}°</div>`;
 }
 function renderSteps(){
@@ -1002,26 +1088,50 @@ parking.addEventListener('lostpointercapture',finishResize);
 // 反対側（下側）の駐車列は「車路の下端からの距離」で固定。車路が変わると列ごと移動する。
 function applyRoad(){
   invalidatePlan();
-  const bottom=ROAD_TOP+roadH, H=bottom+ROW_H, c=ROAD_TOP+roadH/2;
+  const g=id=>document.getElementById(id), set=(id,o)=>{const e=g(id);for(const k in o)e.setAttribute(k,o[k]);};
+  const bottom=ROAD_TOP+roadH, H=isPara()?PARA_H:bottom+ROW_H, c=ROAD_TOP+roadH/2;
+  if(isPara())VIEW_W=2*PARA_SW+roadH; else VIEW_W=560;
   parking.setAttribute('viewBox',`0 0 ${VIEW_W} ${H}`);
-  document.getElementById('bgRect').setAttribute('height',H);
-  document.getElementById('roadRect').setAttribute('height',roadH);
-  const row=document.getElementById('bottomRow'); row.setAttribute('y',bottom); row.setAttribute('height',ROW_H);
-  document.getElementById('bottomLines').setAttribute('d',[30,130,230,330,430,530].map(x=>`M${x} ${bottom}V${H}`).join(' '));
-  for(const i of [4,5,6,7,8]) otherCars[i].y=bottom+100;
-  // 車路ラベルと矢印は車路の中央付近に置く（狭くても端にはみ出さない長さにする）
-  const L=Math.min(50,roadH/2-34), a0=c+12, a1=a0+L;
-  document.getElementById('roadLabel').setAttribute('y',c);
-  document.getElementById('roadArrow').setAttribute('d',`M280 ${a0}V${a1} M272 ${a1-9}L280 ${a1}L288 ${a1-9}`);
-  document.getElementById('roadEdgeLine').setAttribute('y1',bottom);document.getElementById('roadEdgeLine').setAttribute('y2',bottom);
-  document.getElementById('roadEdgeHit').setAttribute('y',bottom-12);
-  document.getElementById('roadGrip').setAttribute('y',bottom-5);
+  const cxm=VIEW_W/2;
+  set('bgRect',{width:VIEW_W,height:H});
+  if(isPara()){
+    const ex=PARA_KX+roadH;
+    set('topRow',{x:0,y:0,width:PARA_SW,height:H});
+    set('roadRect',{x:PARA_SW,y:0,width:roadH,height:H});
+    set('bottomRow',{x:ex,y:0,width:PARA_SW,height:H});
+    set('kerbLine',{x1:PARA_KX,x2:PARA_KX,y1:0,y2:H});
+    set('roadEdgeLine',{x1:ex,x2:ex,y1:0,y2:H});
+    set('roadEdgeHit',{x:ex-12,y:0,width:24,height:H});
+    set('roadGrip',{x:ex-5,y:H/2-30,width:10,height:60});
+    g('roadEdge').style.cursor='ew-resize';
+    g('bottomLines').setAttribute('d','');
+    const rc=PARA_KX+roadH/2;
+    set('roadLabel',{x:rc,y:46});
+    set('roadArrow',{d:`M${rc} 112V64 M${rc-8} 74L${rc} 64L${rc+8} 74`});
+  }else{
+    set('topRow',{x:0,y:0,width:VIEW_W,height:200});
+    set('roadRect',{x:0,y:ROAD_TOP,width:VIEW_W,height:roadH});
+    set('bottomRow',{x:0,y:bottom,width:VIEW_W,height:ROW_H});
+    set('kerbLine',{x1:0,x2:VIEW_W,y1:200,y2:200});
+    set('roadEdgeLine',{x1:0,x2:VIEW_W,y1:bottom,y2:bottom});
+    set('roadEdgeHit',{x:0,y:bottom-12,width:VIEW_W,height:24});
+    set('roadGrip',{x:cxm-30,y:bottom-5,width:60,height:10});
+    g('roadEdge').style.cursor='ns-resize';
+    g('bottomLines').setAttribute('d',[30,130,230,330,430,530].map(x=>`M${x} ${bottom}V${H}`).join(' '));
+    const L=Math.min(50,roadH/2-34), a0=c+12, a1=a0+L;
+    set('roadLabel',{x:cxm,y:c});
+    set('roadArrow',{d:`M${cxm} ${a0}V${a1} M${cxm-8} ${a1-9}L${cxm} ${a1}L${cxm+8} ${a1-9}`});
+  }
+  if(!isPara())for(const i of [4,5,6,7,8]) otherCars[i].y=bottom+100;
+  if(typeof parkStyle!=='undefined'&&isEnter()){const oy=start.y;start.y=startPoseFor(parkStyle.value).y;
+    const o=rearAxleForBodyCenter(start.x,oy,start.angle);if(Math.abs(rearX-o.x)<0.5&&Math.abs(rearY-o.y)<0.5&&Math.abs(angle-start.angle)<1e-6){const r=rearAxleForBodyCenter(start.x,start.y,start.angle);rearX=r.x;rearY=r.y;}}
   document.getElementById('roadSummary').textContent=`${(roadH/SCALE).toFixed(1)} m`;
   updateDisplay();
 }
 // 車路を狭めた結果、操作対象車が反対側の車に重なってしまう場合は、その手前で止める。
 function roadBlocked(h){
   const player=carCorners(rearX,rearY,angle), bottom=ROAD_TOP+h;
+  if(isPara())return player.some(q=>q.x>PARA_KX+h);
   return [4,5,6,7,8].some(i=>{const c=otherCars[i];return rectanglesOverlap(player,parkedCarCorners(c.x,bottom+100,c.angle,c));});
 }
 function moveRoadTo(target){
@@ -1039,13 +1149,13 @@ const roadEdge=document.getElementById('roadEdge');
 let roadDrag=null;
 roadEdge.addEventListener('pointerdown',e=>{
   e.preventDefault();e.stopPropagation();
-  roadDrag={id:e.pointerId,offset:svgPoint(e).y-(ROAD_TOP+roadH)};
+  roadDrag={id:e.pointerId,offset:isPara()?svgPoint(e).x-(PARA_KX+roadH):svgPoint(e).y-(ROAD_TOP+roadH)};
   try{roadEdge.setPointerCapture(e.pointerId)}catch(_){}
 });
 roadEdge.addEventListener('pointermove',e=>{
   if(!roadDrag||e.pointerId!==roadDrag.id)return;
   e.preventDefault();
-  moveRoadTo(svgPoint(e).y-roadDrag.offset-ROAD_TOP);
+  moveRoadTo(isPara()?svgPoint(e).x-roadDrag.offset-PARA_KX:svgPoint(e).y-roadDrag.offset-ROAD_TOP);
 });
 function endRoadDrag(e){if(roadDrag&&e.pointerId===roadDrag.id)roadDrag=null;}
 roadEdge.addEventListener('pointerup',endRoadDrag);
