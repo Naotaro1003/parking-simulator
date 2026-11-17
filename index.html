@@ -95,13 +95,22 @@ button.selected{outline:3px solid #f5c45b}
       <optgroup label="入庫（車路から駐車枠に入る）">
         <option value="enter">入庫（車路から駐車枠に入る）</option>
       </optgroup>
+      <optgroup label="Uターン">
+        <option value="uturn">Uターン（交差点の右折レーンから）</option>
+      </optgroup>
       <optgroup label="縦列駐車">
         <option value="paraIn">縦列駐車：入庫（前後の車の間に入る）</option>
         <option value="paraOut">縦列駐車：出庫（前後の車の間から出る）</option>
       </optgroup>
     </select>
+    <span id="uBox" hidden style="display:none;align-items:center;gap:10px;flex-wrap:wrap">
+      <label>対向車線 <select id="uOpp"><option value="1">1車線</option><option value="2" selected>2車線</option><option value="3">3車線</option></select></label>
+      <label>車線の幅 <input type="number" id="uLane" min="2.75" max="3.75" step="0.05" value="3.25" style="width:68px"> m</label>
+      <label>中央分離帯 <input type="number" id="uMedian" min="0" max="4" step="0.5" value="0" style="width:60px"> m</label>
+    </span>
     <label id="gapBox" hidden style="display:none;align-items:center;gap:6px">空きスペースの長さ
       <input type="number" id="gapLen" min="4.8" max="10" step="0.1" value="6.0" style="width:68px"> m</label>
+    <div id="uInfoBox" class="small" style="display:none;flex-basis:100%;background:#eef3fb;border-radius:6px;padding:6px 8px"><span id="uInfo"></span></div>
     <div class="mode-note" id="modeNote">ハンドルを回して前進・バックで動かすか、「手順を入力して走らせる」に距離とハンドル角を打ち込んで走らせます。</div>
   </section>
 
@@ -125,6 +134,7 @@ button.selected{outline:3px solid #f5c45b}
           <label>全長（m）<input id="inLength" type="number" step="0.05" min="3" max="6.5"></label>
           <label>前輪軸から前端（m）<input id="inFront" type="number" step="0.05" min="0.2" max="2"></label>
           <label>後輪軸から後端（m）<input id="inRear" type="number" step="0.05" min="0.2" max="2"></label>
+          <label>最大タイヤ角（°）<input id="inSteer" type="number" step="0.5" min="20" max="45"></label>
           <div class="tire-total" id="tireTotal"></div>
         </div>
         <label class="tire-check"><input id="showDims" type="checkbox" checked>駐車場図に寸法と車軸の丸（緑）を表示する</label>
@@ -146,6 +156,7 @@ button.selected{outline:3px solid #f5c45b}
         <rect id="topRow" x="0" y="0" width="560" height="200" fill="#bcbcbc"/>
         <rect id="bottomRow" x="0" y="400" width="560" height="200" fill="#bcbcbc"/>
         <rect id="roadRect" x="0" y="200" width="560" height="200" fill="#a6a6a6"/>
+        <g id="uLayer" pointer-events="none" display="none"></g>
         <g stroke="#fff" stroke-width="4">
           <path id="topLines" d="M30 0V200 M130 0V200 M230 0V200 M330 0V200 M430 0V200 M530 0V200" />
           <path id="bottomLines" d="M30 400V600 M130 400V600 M230 400V600 M330 400V600 M430 400V600 M530 400V600" />
@@ -279,19 +290,32 @@ const parking = document.getElementById('parking');
 const trajectory = document.getElementById('trajectory');
 // start.x/start.y は「車体の幾何学的中心」。上段左右の車と同じ y=100。
 // 前向き駐車：車の前方が枠の奥（上）向き＝π。後ろ向き駐車：前方が車路側（下）向き＝0（周囲の上段の車と同じ向き）。
-const START_ANGLE={front:Math.PI, back:0, enter:Math.PI/2, paraIn:Math.PI, paraOut:Math.PI};
+const START_ANGLE={front:Math.PI, back:0, enter:Math.PI/2, paraIn:Math.PI, paraOut:Math.PI, uturn:Math.PI};
 // 入庫：操作対象車の枠(x=280)は空き。車は車路を右向きに走ってきて、枠の手前（左）で止まった状態から始める。
 //  枠の手前に止まった状態から、前進で切り込んでも、前進で通り過ぎてからバックで入れてもよい。
 const isEnter=()=>parkStyle.value==='enter';
 // 縦列駐車：縦長の図。左の歩道に沿って車が縦に並び、前（上）方向へ走る。縁石は x=PARA_KX。
 var paraMode=false;   // 初期化中に参照されるので var（applyScene が更新）
 const isPara=()=>paraMode;
+// Uターン：交差点の右折レーンから。図は縦長。北向きに停止線の手前から出発し、南向きの対向車線へ戻る。
+var uMode=false;
+const isU=()=>uMode;
+var UG=null;   // 現在の交差点の寸法（applyScene/applyRoad が作る）
+const U_SW=60, U_NH=140, U_NL=2;   // 歩道幅(1.5m)、北側の道路の見える長さ、手前側の車線数
+let uOpp=2, uLane=3.25, uMedian=0;
+function uGeom(){
+  const LW=uLane*SCALE, MW=uMedian*SCALE, xW=U_SW;
+  const xC=xW+U_NL*LW, xO=xC+MW, xE=xO+uOpp*LW;      // 手前側の右端(センターライン)、対向車線の左端、対向車線の右端(縁石)
+  const BD=3*LW, boxT=U_NH, boxB=U_NH+BD, stopY=boxB+120, H=stopY+12+180+110;
+  return {LW,MW,xW,xC,xO,xE,BD,boxT,boxB,stopY,H,W:xE+U_SW,startX:xW+(U_NL-0.5)*LW};
+}
 const PARA_H=800, PARA_SW=100, PARA_KX=100, PARA_X=148;   // 図の高さ、歩道の幅、縁石のX、駐車車両の中心X（縁石から約30cm離す）
 let gapLen=6.0;                             // 空きスペースの長さ(m)
 // 添字0＝後ろの車（下）／添字1＝前の車（上）。車はすべて上向き(π)。
 const paraNeighbours=()=>{const h=gapLen*SCALE/2;return [PARA_H/2+h+90,PARA_H/2-h-90];};
 function startPoseFor(style){
   if(style==='enter')return {x:110,y:ROAD_TOP+roadH*0.45,angle:Math.PI/2};
+  if(style==='uturn'){UG=uGeom();return {x:UG.startX,y:UG.stopY+12+90,angle:Math.PI};}
   if(style==='paraOut')return {x:PARA_X,y:PARA_H/2,angle:Math.PI};
   if(style==='paraIn')return {x:PARA_X+72+40,y:paraNeighbours()[1],angle:Math.PI};   // 前（上）の車の真横に1m離して止まる
   return {x:280,y:100,angle:START_ANGLE[style]};
@@ -302,11 +326,11 @@ let angle=start.angle;
 const SCALE=40;
 const ROAD_TOP=200, ROW_H=200; let ROAD_MIN=120, ROAD_MAX=320; // 車路上端のY、駐車列の高さ、車路幅の下限/上限（SVG単位。40単位=1m）
 let roadH=200; // 現在の車路幅（SVG単位）
-function svgHeight(){return paraMode?PARA_H:ROAD_TOP+roadH+ROW_H;}
+function svgHeight(){return uMode?UG.H:paraMode?PARA_H:ROAD_TOP+roadH+ROW_H;}
 const WB_MIN=1.5, WB_MAX=4.5, OH_MIN=0.2, OH_MAX=2.0, LEN_MIN=3.0, LEN_MAX=6.5; // タイヤ位置・全長の許容範囲(m)
 const WHEELBASE_RATIO=0.6; // 周囲の車のタイヤ間隔（全長に対する比率）に合わせる
 const DEFAULT_VEHICLE={length:4.5,width:1.8,wheelbase:2.7,frontOverhang:0.9,rearOverhang:0.9}; // サイズリセット用の初期値
-let params={...DEFAULT_VEHICLE,maxSteeringAngle:28,lockToLock:900};
+let params={...DEFAULT_VEHICLE,maxSteeringAngle:30,lockToLock:900};
 // シミュレーション状態は後輪軸中心。描画車体は後輪軸から
 // front=(wheelbase+frontOverhang)、rear=rearOverhang の範囲に描く。
 // したがって車体中心と後輪軸の距離は (front-rear)/2。
@@ -370,9 +394,18 @@ function collisionAt(cx,cy,a,margin=0){
   const corners=carCorners(cx,cy,a);
   if(corners.some(p=>p.x<0||p.x>VIEW_W||p.y<0||p.y>svgHeight())) return 'boundary';
   if(paraMode){ if(corners.some(p=>p.x<PARA_KX||p.x>PARA_KX+roadH)) return 'boundary'; }
+  if(uMode){   // 交差点の外側（交差点の中は自由）：歩道・縁石
+    if(corners.some(p=>(p.y<UG.boxT||p.y>UG.boxB)&&(p.x<UG.xW||p.x>UG.xE))) return 'boundary';
+  }
   // margin>0：車体を全周これだけ(SVG単位。1単位=2.5cm)広げて、周囲の車とのすきまを確かめる
   const test=margin>0?(()=>{const g=vehicleGeometry();return carCorners(cx,cy,a,{halfWidth:g.halfWidth+margin,front:g.front+margin,rear:g.rear+margin});})():corners;
   for(const c of otherCars){ if(rectanglesOverlap(test,parkedCarCorners(c.x,c.y,c.angle,c))) return 'car'; }
+  if(uMode&&UG.MW>0){   // 中央分離帯（交差点の手前側・奥側に1本ずつ）
+    for(const [y1,y2] of [[0,UG.boxT],[UG.boxB,UG.H]]){
+      const r=[{x:UG.xC,y:y1},{x:UG.xO,y:y1},{x:UG.xO,y:y2},{x:UG.xC,y:y2}];
+      if(rectanglesOverlap(test,r)) return 'car';
+    }
+  }
   return null;
 }
 // 車体中心を動かさずに、ホイールベース・前後オーバーハングを設定する（全長はその合計）。
@@ -383,12 +416,26 @@ function setGeometry(wb,fo,ro){
   const r=rearAxleForBodyCenter(keep.x,keep.y,angle);rearX=r.x;rearY=r.y;
 }
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+const STEER_MIN=20, STEER_MAX=45;
+const inSteer=document.getElementById('inSteer');
+function applySteerInput(commit){
+  const raw=parseFloat(inSteer.value);
+  if(!isFinite(raw)||(!commit&&(raw<STEER_MIN||raw>STEER_MAX)))return;
+  params.maxSteeringAngle=clamp(raw,STEER_MIN,STEER_MAX);
+  clearRec();invalidatePlan();
+  if(typeof steps!=='undefined'&&steps.length){resim();renderSteps();}
+  if(typeof updateUInfo==='function')updateUInfo();
+  updateDisplay();
+}
+inSteer.addEventListener('input',()=>applySteerInput(false));
+inSteer.addEventListener('change',()=>{applySteerInput(true);inSteer.value=params.maxSteeringAngle.toFixed(1);});
 const tireInputs={wb:document.getElementById('inWheelbase'),len:document.getElementById('inLength'),fo:document.getElementById('inFront'),ro:document.getElementById('inRear')};
 function updateVehicleSummary(skipKey=null){
   document.getElementById('vehicleSummary').textContent=`幅 ${params.width.toFixed(1)} m × 全長 ${params.length.toFixed(2)} m（ホイールベース ${params.wheelbase.toFixed(2)} m）`;
   for(const [k,v] of [['wb',params.wheelbase],['len',params.length],['fo',params.frontOverhang],['ro',params.rearOverhang]]){
     if(k!==skipKey) tireInputs[k].value=v.toFixed(2);   // いま打ち込んでいる欄だけは書き換えない
   }
+  if(skipKey!=='steer')inSteer.value=params.maxSteeringAngle.toFixed(1);
   document.getElementById('tireTotal').textContent=`後端 ←${params.rearOverhang.toFixed(2)}→ 後輪軸 ←${params.wheelbase.toFixed(2)}→ 前輪軸 ←${params.frontOverhang.toFixed(2)}→ 前端（合計 ${params.length.toFixed(2)} m）`;
 }
 function updateDimensions(){
@@ -556,7 +603,7 @@ function step(dt){
   const collision=collisionAt(nx,ny,na);
   if(collision){
     movement=0;
-    warn(collision==='car'?'⚠ 車体が周囲の車と接触する位置に達したため停止しました。':(isPara()?'⚠ 縁石（道路の端）に達するため停止しました。':'⚠ 車体が駐車場の表示範囲を越えるため停止しました。'),'#c62828');
+    warn(collision==='car'?'⚠ 車体が周囲の車と接触する位置に達したため停止しました。':((isPara()||isU())?'⚠ 縁石・中央分離帯などに達するため停止しました。':'⚠ 車体が駐車場の表示範囲を越えるため停止しました。'),'#c62828');
   }else{
     rearX=nx;rearY=ny;angle=na;
     if(near<145) warn('注意：周囲の車に接近しています（距離表示は概算）。','#b26a00');
@@ -599,46 +646,53 @@ function resetPose(){
 }
 // 駐車の向きを切り替える。サイズは保ったまま、駐車枠の中央・新しい向きに置き直す。
 const parkStyle=document.getElementById('parkStyle');
-let savedPerp=null, lastPara=false;
+let savedPerp=null, lastKind='perp';
 function layoutPara(){   // 縦列駐車の前後の車を置く（空きスペース長に合わせる）
   const [xl,xr]=paraNeighbours();
   [xl,xr].forEach((y,i)=>{const c=otherCars[i];c.x=PARA_X;c.y=y;c.angle=Math.PI;});
 }
 function applyScene(){
-  const para=parkStyle.value==='paraIn'||parkStyle.value==='paraOut';paraMode=para;
-  if(para!==lastPara){
-    if(para){
-      savedPerp=otherCars.map(c=>({...c}));
-      const w=savedPerp[0].width,l=savedPerp[0].length;
-      otherCars.length=0;otherCars.push({x:0,y:0,angle:0,width:w,length:l},{x:0,y:0,angle:0,width:w,length:l});
-      ROAD_MIN=160;ROAD_MAX=320;roadH=240;VIEW_W=2*PARA_SW+roadH;
-    }else{
-      otherCars.length=0;otherCars.push(...savedPerp);
-      VIEW_W=560;ROAD_MIN=120;ROAD_MAX=320;roadH=200;
-    }
-    lastPara=para;selectedCar='player';
-    for(const id of ['topLines','bottomLines'])document.getElementById(id).style.display=para?'none':'';
-    for(const id of ['topRow','bottomRow'])document.getElementById(id).setAttribute('fill',para?'#c9c4b6':'#bcbcbc');
-    document.getElementById('kerbLine').setAttribute('display',para?'':'none');
+  const st=parkStyle.value, para=st==='paraIn'||st==='paraOut', uu=st==='uturn';
+  const kind=uu?'u':para?'para':'perp';
+  paraMode=para;uMode=uu;
+  if(uu)UG=uGeom();
+  if(kind!==lastKind){
+    if(lastKind==='perp')savedPerp=otherCars.map(c=>({...c}));
+    const w=savedPerp[0].width,l=savedPerp[0].length;
+    otherCars.length=0;
+    if(kind==='perp'){otherCars.push(...savedPerp);VIEW_W=560;ROAD_MIN=120;ROAD_MAX=320;roadH=200;}
+    else if(kind==='para'){otherCars.push({x:0,y:0,angle:0,width:w,length:l},{x:0,y:0,angle:0,width:w,length:l});ROAD_MIN=160;ROAD_MAX=320;roadH=240;VIEW_W=2*PARA_SW+roadH;}
+    else{VIEW_W=UG.W;}
+    lastKind=kind;selectedCar='player';
+    for(const id of ['topLines','bottomLines'])document.getElementById(id).style.display=kind==='perp'?'':'none';
+    for(const id of ['topRow','bottomRow'])document.getElementById(id).setAttribute('fill',kind==='para'?'#c9c4b6':'#bcbcbc');
+    document.getElementById('kerbLine').setAttribute('display',kind==='para'?'':'none');
   }
   if(para)layoutPara();
-  const gb=document.getElementById('gapBox');gb.hidden=!para;gb.style.display=para?'flex':'none';
-  Object.assign(start,startPoseFor(parkStyle.value));
+  const show=(id,on)=>{const e=document.getElementById(id);e.hidden=!on;e.style.display=on?'flex':'none';};
+  show('gapBox',para);show('uBox',uu);
+  document.getElementById('uInfoBox').style.display=uu?'':'none';
+  Object.assign(start,startPoseFor(st));
   const sl=document.getElementById('slotLabel');
-  sl.textContent=parkStyle.value==='enter'?'入庫先（空き枠）':parkStyle.value==='paraIn'?'入庫先':'操作対象車';
+  sl.textContent=st==='enter'?'入庫先（空き枠）':st==='paraIn'?'入庫先':'操作対象車';
   sl.setAttribute('y',para?PARA_H/2:207);sl.setAttribute('x',para?PARA_SW/2:280);
+  sl.style.display=uu?'none':'';
   resetPose();applyRoad();
 }
 parkStyle.addEventListener('change',()=>{
   applyScene();
-  warn({front:'前向き駐車の状態にしました。バックで出庫します。',back:'後ろ向き駐車の状態にしました。前進で出庫します。',enter:'入庫の場面です。車路から、中央の空き枠に入れてください（前進で入る・前進してからバックで入れる、どちらも試せます）。',paraIn:'縦列駐車の入庫です。前の車の真横から、バックで前後の車の間に入れてください。',paraOut:'縦列駐車の出庫です。前後の車の間から、車路へ出てください。'}[parkStyle.value],'#26733b');
+  warn({front:'前向き駐車の状態にしました。バックで出庫します。',back:'後ろ向き駐車の状態にしました。前進で出庫します。',enter:'入庫の場面です。車路から、中央の空き枠に入れてください（前進で入る・前進してからバックで入れる、どちらも試せます）。',paraIn:'縦列駐車の入庫です。前の車の真横から、バックで前後の車の間に入れてください。',paraOut:'縦列駐車の出庫です。前後の車の間から、車路へ出てください。',uturn:'Uターンの場面です。交差点の右折レーンの先頭（停止線の手前）から、対向車線へ回り込んでください。'}[parkStyle.value],'#26733b');
   updateDisplay();
 });
+for(const [id,fn] of [['uOpp',v=>{uOpp=parseInt(v)||2;}],['uLane',v=>{uLane=Math.max(2.75,Math.min(3.75,parseFloat(v)||3.25));}],['uMedian',v=>{uMedian=Math.max(0,Math.min(4,parseFloat(v)||0));}]]){
+  document.getElementById(id).addEventListener('change',e=>{fn(e.target.value);if(id==='uLane')e.target.value=uLane.toFixed(2);if(id==='uMedian')e.target.value=uMedian;
+    if(isU()){UG=uGeom();VIEW_W=UG.W;Object.assign(start,startPoseFor('uturn'));resetPose();applyRoad();updateDisplay();}});
+}
 document.getElementById('gapLen').addEventListener('change',e=>{
   gapLen=Math.max(4.8,Math.min(10,parseFloat(e.target.value)||6));e.target.value=gapLen.toFixed(1);
   if(isPara()){layoutPara();Object.assign(start,startPoseFor(parkStyle.value));resetPose();updateDisplay();}
 });
-// ハンドルをドラッグして回す。回転角は左右最大28度に対応
+// ハンドルをドラッグして回す。回転角は左右最大 params.maxSteeringAngle 度（初期値30°）に対応
 let dragging=false, previousPointerAngle=0;
 // 値が大きいほど鈍感。ポインターをこの角度(rad)だけ回すとハンドルが片側いっぱい(±1)まで回る。
 // 以前は π×0.9（約162°）で、わずかな操作で回りすぎていた。π×2.25（約405°）なら
@@ -682,7 +736,7 @@ let sim={start:null,samples:[]};   // steps を走らせた結果
 let stepView=false;   // true の間は、車の位置を「手順の再現・位置スライダー」が決める（手動で動かすと false に戻る）
 let scrubPos=0, replay=null, chartDirty=true, chartCursor=-1;
 const originPose=()=>{const r=rearAxleForBodyCenter(start.x,start.y,start.angle);return {x:r.x,y:r.y,a:start.angle};};
-const exitGear=()=>({front:-1,back:1,enter:1,paraIn:-1,paraOut:-1})[parkStyle.value];   // 出庫は前向き駐車ならバック／入庫は入り方の向き
+const exitGear=()=>({front:-1,back:1,enter:1,paraIn:-1,paraOut:-1,uturn:1})[parkStyle.value];   // 出庫は前向き駐車ならバック／入庫は入り方の向き
 const steerOf=w=>clamp(w/(params.lockToLock/2),-1,1)*params.maxSteeringAngle*Math.PI/180;
 const wheelDeg=steer=>steer/(params.maxSteeringAngle*Math.PI/180)*(params.lockToLock/2);
 function setPose(p){   // p=0: 出発位置、p=k: k 番目のサンプル
@@ -744,7 +798,7 @@ function stepReplay(){
 function reportResult(){
   const cs=contactSummary(sim.samples);
   if(cs.ep)warn(`⚠ この手順だと、周囲の車と ${cs.ep} 回接触します（最初は約 ${cs.first.toFixed(1)} m 地点）。`,'#c62828');
-  else if(sim.out)warn(isPara()?'⚠ この手順だと、縁石（道路の端）に出てしまいます。':'⚠ この手順だと、表示範囲の外へ出てしまいます。','#c62828');
+  else if(sim.out)warn((isPara()||isU())?'⚠ この手順だと、縁石などにぶつかる位置に出てしまいます。':'⚠ この手順だと、表示範囲の外へ出てしまいます。','#c62828');
   else warn('✅ この手順で、最後まで接触せずに走行できました。','#26733b');
 }
 // ---- グラフ ----
@@ -798,11 +852,21 @@ function renderSummary(){
   if(!steps.length){box.innerHTML='';return;}
   const {len,sw}=stepStats(steps,S), cs=contactSummary(S);
   if(sim.clr===undefined)sim.clr=pathClearance(S);
-  const fin=S.length?S[S.length-1].a:originPose().a, par=isPara()?(()=>{const d=Math.abs(wrapA(fin))*180/Math.PI;return Math.min(d,180-d);})():Math.abs(Math.abs(wrapA(fin))*180/Math.PI-90);
+  const fin=S.length?S[S.length-1].a:originPose().a, par=(isPara()||isU())?(()=>{const d=Math.abs(wrapA(fin))*180/Math.PI;return Math.min(d,180-d);})():Math.abs(Math.abs(wrapA(fin))*180/Math.PI-90);
   const lines=[];
   if(cs.ep)lines.push(`<div style="padding:6px 8px;background:#ffebee;border-radius:6px;color:#c62828;font-weight:700">⚠ 他の車との接触 ${cs.ep} 回（最初は約 ${cs.first.toFixed(1)} m 地点）</div>`);
-  if(sim.out)lines.push(`<div style="padding:6px 8px;background:#ffebee;border-radius:6px;color:#c62828;font-weight:700">⚠ ${isPara()?'縁石（道路の端）':'表示範囲の外'}に出るため、そこから先は走らせていません</div>`);
+  if(sim.out)lines.push(`<div style="padding:6px 8px;background:#ffebee;border-radius:6px;color:#c62828;font-weight:700">⚠ ${(isPara()||isU())?'縁石などにぶつかる位置':'表示範囲の外'}に出るため、そこから先は走らせていません</div>`);
   if(!cs.ep&&!sim.out&&S.length)lines.push(`<div style="padding:6px 8px;background:#f0f7ef;border-radius:6px">✅ 接触なし／${clearanceText(sim.clr)}</div>`);
+  if(parkStyle.value==='uturn'&&S.length&&!sim.out){
+    const l=S[S.length-1], cc=carCorners(l.x,l.y,l.a);
+    const minX=Math.min(...cc.map(q=>q.x)), maxX=Math.max(...cc.map(q=>q.x)), minY=Math.min(...cc.map(q=>q.y));
+    const hd=Math.abs(wrapA(l.a))*180/Math.PI;     // 0°＝真南（対向車線の進行方向）
+    const left=(minX-UG.xO)/SCALE*100, right=(UG.xE-maxX)/SCALE*100;
+    const inLane=left>=0&&right>=0&&minY>=UG.boxB-4*SCALE, dirOk=hd<=10;
+    const done=inLane&&dirOk;
+    lines.push(done?`<div style="padding:6px 8px;background:#f0f7ef;border-radius:6px">🔄 Uターン完了：対向車線に入れました（センターライン側まで 約${left.toFixed(0)}cm／縁石まで 約${right.toFixed(0)}cm／向きのずれ 約${hd.toFixed(0)}°）</div>`
+      :`<div style="padding:6px 8px;background:#fff8e1;border-radius:6px;color:#8a5a00;font-weight:700">🔄 まだUターンが完了していません（${dirOk?'':`向きがあと約${hd.toFixed(0)}°回り切っていません。`}${(left<0||right<0)?'車体が対向車線からはみ出しています。':''}切り返しを入れて続けてみてください）</div>`);
+  }
   if(parkStyle.value==='paraIn'&&S.length&&!sim.out&&otherCars.length>=2){
     const l=S[S.length-1], cc=carCorners(l.x,l.y,l.a);
     const Ly=otherCars[0].y-otherCars[0].length*SCALE/2, Fy=otherCars[1].y+otherCars[1].length*SCALE/2;   // 後ろの車の前端／前の車の後端
@@ -1089,12 +1153,18 @@ parking.addEventListener('lostpointercapture',finishResize);
 function applyRoad(){
   invalidatePlan();
   const g=id=>document.getElementById(id), set=(id,o)=>{const e=g(id);for(const k in o)e.setAttribute(k,o[k]);};
-  const bottom=ROAD_TOP+roadH, H=isPara()?PARA_H:bottom+ROW_H, c=ROAD_TOP+roadH/2;
-  if(isPara())VIEW_W=2*PARA_SW+roadH; else VIEW_W=560;
+  const bottom=ROAD_TOP+roadH, H=isU()?UG.H:isPara()?PARA_H:bottom+ROW_H, c=ROAD_TOP+roadH/2;
+  if(isU())VIEW_W=UG.W; else if(isPara())VIEW_W=2*PARA_SW+roadH; else VIEW_W=560;
+  for(const id of ['roadLabel','roadArrow','roadEdge'])g(id).style.display=isU()?'none':'';
+  for(const id of ['topRow','bottomRow','roadRect'])g(id).style.display=isU()?'none':'';
+  if(!isU())g('bgRect').setAttribute('fill','#bcbcbc');
+  g('uLayer').setAttribute('display',isU()?'':'none');
+  if(isU())drawU();
   parking.setAttribute('viewBox',`0 0 ${VIEW_W} ${H}`);
   const cxm=VIEW_W/2;
   set('bgRect',{width:VIEW_W,height:H});
-  if(isPara()){
+  if(isU()){ /* 描画は drawU() */ }
+  else if(isPara()){
     const ex=PARA_KX+roadH;
     set('topRow',{x:0,y:0,width:PARA_SW,height:H});
     set('roadRect',{x:PARA_SW,y:0,width:roadH,height:H});
@@ -1122,14 +1192,56 @@ function applyRoad(){
     set('roadLabel',{x:cxm,y:c});
     set('roadArrow',{d:`M${cxm} ${a0}V${a1} M${cxm-8} ${a1-9}L${cxm} ${a1}L${cxm+8} ${a1-9}`});
   }
-  if(!isPara())for(const i of [4,5,6,7,8]) otherCars[i].y=bottom+100;
+  if(!isPara()&&!isU())for(const i of [4,5,6,7,8]) otherCars[i].y=bottom+100;
   if(typeof parkStyle!=='undefined'&&isEnter()){const oy=start.y;start.y=startPoseFor(parkStyle.value).y;
     const o=rearAxleForBodyCenter(start.x,oy,start.angle);if(Math.abs(rearX-o.x)<0.5&&Math.abs(rearY-o.y)<0.5&&Math.abs(angle-start.angle)<1e-6){const r=rearAxleForBodyCenter(start.x,start.y,start.angle);rearX=r.x;rearY=r.y;}}
-  document.getElementById('roadSummary').textContent=`${(roadH/SCALE).toFixed(1)} m`;
+  updateUInfo();
+  document.getElementById('roadSummary').textContent=isU()?'（Uターンでは設定欄で変更）':`${(roadH/SCALE).toFixed(1)} m`;
   updateDisplay();
 }
 // 車路を狭めた結果、操作対象車が反対側の車に重なってしまう場合は、その手前で止める。
+function drawU(){
+  const G=UG, L=document.getElementById('uLayer'), bg=document.getElementById('bgRect'), W=G.W;
+  bg.setAttribute('fill','#c9c4b6');
+  let h='';
+  const R=(x,y,w,hh,fill,extra='')=>`<rect x="${x}" y="${y}" width="${w}" height="${hh}" fill="${fill}" ${extra}/>`;
+  const road='#a6a6a6';
+  h+=R(G.xW,0,G.xE-G.xW,G.boxT,road)+R(0,G.boxT,W,G.BD,road)+R(G.xW,G.boxB,G.xE-G.xW,G.H-G.boxB,road);
+  // 縁石
+  h+=`<g stroke="#6b665a" stroke-width="4"><path d="M${G.xW} 0V${G.boxT} M${G.xE} 0V${G.boxT} M${G.xW} ${G.boxB}V${G.H} M${G.xE} ${G.boxB}V${G.H}"/></g>`;
+  // 交差点の横断歩道（手前側）と停止線
+  for(let x=G.xW+10;x<G.xE-10;x+=26)h+=R(x,G.boxB+6,14,100,'#e8e8e8');
+  h+=R(G.xW,G.stopY,G.xC-G.xW,8,'#fff');
+  // センターライン／中央分離帯
+  const cl=(y1,y2)=>G.MW>0?R(G.xC,y1,G.MW,y2-y1,'#8d9a78','stroke="#56604a" stroke-width="3"'):`<g stroke="#f5c400" stroke-width="4"><path d="M${G.xC-3} ${y1}V${y2} M${G.xC+3} ${y1}V${y2}"/></g>`;
+  h+=cl(0,G.boxT)+cl(G.MW>0?G.boxB:G.stopY,G.H);   // 中央線は停止線の手前で終える（分離帯は横断歩道の部分も残す）
+  // 車線境界（破線）
+  let dash='';
+  dash+=`M${G.xW+G.LW} 0V${G.boxT} M${G.xW+G.LW} ${G.stopY+14}V${G.H} `;
+  for(let k=1;k<uOpp;k++){const x=G.xO+k*G.LW;dash+=`M${x} 0V${G.boxT} M${x} ${G.stopY+14}V${G.H} `;}
+  h+=`<path d="${dash}" stroke="#fff" stroke-width="3" fill="none" stroke-dasharray="14 12"/>`;
+  // 対向車線の進行方向（南向き）と案内文字
+  const cxo=(G.xO+G.xE)/2;
+  h+=`<g stroke="#fff" stroke-width="3" fill="none" stroke-dasharray="6 5" opacity=".85"><path d="M${cxo} ${G.H-150}V${G.H-90} M${cxo-8} ${G.H-100}L${cxo} ${G.H-90}L${cxo+8} ${G.H-100}"/><path d="M${cxo} 40V100 M${cxo-8} 90L${cxo} 100L${cxo+8} 90"/></g>`;
+  h+=`<g fill="#fff" font-size="13" text-anchor="middle"><text x="${cxo}" y="${G.H-30}">対向車線（ここへ）</text><text x="${G.startX}" y="${G.H-30}">右折レーン</text><text x="${(G.xW+G.xC)/2-G.LW/2+0}" y="${G.H-30}" opacity=".0"></text></g>`;
+  // 手前側の左の車線の案内（直進・左折）
+  h+=`<g fill="#fff" font-size="12" text-anchor="middle" opacity=".85"><text x="${G.xW+G.LW/2}" y="${G.H-30}">直進・左折</text><text x="${W/2}" y="${G.boxT+G.BD/2}" opacity=".75">交差点</text></g>`;
+  L.innerHTML=h;
+}
+function uTurnNeed(){   // ハンドル全開（右）でUターンしたとき、右折レーン中心から外側へどれだけ張り出すか
+  const st=params.maxSteeringAngle*Math.PI/180, r=rearAxleForBodyCenter(UG.startX,UG.stopY+12+90,Math.PI);
+  let x=r.x,y=r.y,a=Math.PI,maxX=-1e9,minY=1e9;
+  for(let i=0;i<4000&&a>0;i++){const n=bicycleStep(x,y,a,1,st);x=n.x;y=n.y;a=n.a;
+    for(const q of carCorners(x,y,a)){maxX=Math.max(maxX,q.x);minY=Math.min(minY,q.y);}}
+  return {wide:(maxX-UG.startX)/SCALE, deep:(UG.stopY+12-minY)/SCALE};
+}
+function updateUInfo(){
+  if(!isU())return;
+  const n=uTurnNeed(), avail=(UG.xE-UG.startX)/SCALE, d=avail-n.wide;
+  document.getElementById('uInfo').innerHTML=`ハンドル全開で1回で回りきるには、右折レーンの中心から外側（縁石）まで<b>約${n.wide.toFixed(1)} m</b>必要です。この設定は<b>約${avail.toFixed(1)} m</b>で、`+(d>=0?`<b style="color:#26733b">約${d.toFixed(1)} m の余裕</b>があります。`:`<b style="color:#c62828">約${(-d).toFixed(1)} m 足りません</b>（切り返しが必要）。`)+` 交差点内で前に必要な奥行きは約${n.deep.toFixed(1)} m。`;
+}
 function roadBlocked(h){
+  if(isU())return false;
   const player=carCorners(rearX,rearY,angle), bottom=ROAD_TOP+h;
   if(isPara())return player.some(q=>q.x>PARA_KX+h);
   return [4,5,6,7,8].some(i=>{const c=otherCars[i];return rectanglesOverlap(player,parkedCarCorners(c.x,bottom+100,c.angle,c));});
