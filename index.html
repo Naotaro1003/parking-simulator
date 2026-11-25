@@ -3,7 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>駐車練習シミュレーター</title>
+<title>ハンドル操作シミュレーター｜出庫・入庫・縦列駐車・Uターン</title>
+<meta name="description" content="ハンドルの切り方と車の動き・ぶつかり方を、真上から確かめられる無料のシミュレーター。出庫・入庫・縦列駐車・交差点でのUターンに対応。ハンドル角と距離を入力して、車間や道路の幅を変えて試せます。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="ハンドル操作シミュレーター｜出庫・入庫・縦列駐車・Uターン">
+<meta property="og:description" content="ハンドルの切り方と車の動き・ぶつかり方を、真上から確かめられる無料のシミュレーター。車間や道路の幅を変えて試せます。">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="ハンドル操作シミュレーター">
+<meta name="twitter:description" content="出庫・入庫・縦列駐車・Uターンで、ハンドルの切り方と車の動きを確かめられます。">
+<meta name="theme-color" content="#eef1f5">
+<script>(function(){try{var t=localStorage.getItem('parkSimThemeV1')||'dark';var d=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');var m=localStorage.getItem('parkSimModeV1')||'simple';if(m==='simple')document.documentElement.classList.add('simple')}catch(e){document.documentElement.classList.add('dark','simple')}})();</script>
 <style>
 *{box-sizing:border-box}
 :root{--blue:#4778c6;--orange:#f08032;--road:#bcbcbc;--ink:#17243a}
@@ -22,6 +32,16 @@ svg{display:block;width:100%;height:auto;border-radius:8px}
 #parking{background:#bcbcbc;border:1px solid #7e8792;touch-action:manipulation} .resize-handle{fill:#ffeb3b;stroke:#d32f2f;stroke-width:3;cursor:nwse-resize;touch-action:none;pointer-events:all}.car-select{cursor:pointer}
 .parameter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0}.parameter-grid label{font-size:13px;display:flex;flex-direction:column;gap:4px}.parameter-grid input{width:100%;min-width:0}.conditions{font-size:14px;line-height:1.7;color:#3e4958;background:#f4f6f9;padding:9px 11px;border-radius:8px;margin-bottom:10px}
 .right-stack{display:grid;gap:12px}
+.io-badge{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;margin-right:8px;vertical-align:middle;letter-spacing:.05em}
+.io-out{background:#dff1e5;color:#1d6a35}.io-in{background:#dce8fb;color:#245aae}
+#viewPanel{border:2px solid #a7d3b4}
+.right-col{display:grid;gap:12px;align-content:start}.right-col>.panel{margin-bottom:0}
+.io-set{background:#ece9e2;color:#5a5446}
+#settingsPanel h2{font-size:16px;margin-bottom:8px}
+.inputGroup{border:2px solid #9bb9ea;border-radius:16px;padding:10px 10px 0;background:#f2f6fd;margin-bottom:12px}
+.inputGroup>h2{margin:2px 4px 2px}.inputGroup>.group-note{margin:0 4px 10px;font-size:13px;color:#4b5b74}
+.inputGroup .panel{border-color:#cfdcf3}.inputGroup .right-stack{gap:10px}.inputGroup .right-stack .panel{margin-bottom:0}
+.inputGroup .right-stack{padding-bottom:12px}
 .cockpit{background:#17212d;border-radius:12px;padding:10px;color:white}
 .cockpit-title{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px;font-weight:700}
 #view{background:#8aa59a;border:1px solid #3c4a4d}
@@ -46,16 +66,19 @@ button.selected{outline:3px solid #f5c45b}
 .diag-item strong{font-variant-numeric:tabular-nums;white-space:nowrap}
 .diag-note{font-size:11px;color:#657184;line-height:1.5;margin:8px 0 0}
 .tire-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:8px 0}.tire-grid label{font-size:13px;display:flex;flex-direction:column;gap:4px}.tire-grid input{width:100%;min-width:0}.tire-total{grid-column:1/-1;font-size:13px;background:#f4f6f9;border-radius:8px;padding:8px 10px;color:#3e4958}.tire-check{display:flex;align-items:center;gap:8px;font-size:14px;margin-top:4px}.axle-handle{fill:#2ecc71;stroke:#145a32;stroke-width:3;cursor:ns-resize;touch-action:none;pointer-events:all}.seg-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}.seg-table th,.seg-table td{border-bottom:1px solid #e1e6ed;padding:5px 6px;text-align:left;vertical-align:top}.seg-table th{background:#f4f6f9;font-size:12px}#steerChart{border:1px solid #d9dee7;border-radius:8px;background:#fff;margin-top:8px}.m2-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.m2-row button{padding:9px 8px;font-size:14px}.m2-sub{margin:14px 0 4px;font-size:15px}#planStatus{font-size:14px;line-height:1.6;margin-top:8px}.mode2help{font-size:14px;line-height:1.6;color:#435064}
+#custBox{flex-basis:100%;display:none;flex-direction:column;gap:8px;background:#f6f9ff;border:1px solid #cfd9ea;border-radius:10px;padding:10px 12px}#custBox .crow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}#custBox button{padding:7px 11px;font-size:14px}#custBox input[type=number]{width:72px}#custBox details{font-size:14px}#custBox .small{color:#526174}
 @media(max-width:760px){body{padding:10px}.workspace{grid-template-columns:1fr}.steering-box{grid-template-columns:1fr 125px}.toolbar{align-items:flex-start}}
 .cand{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid #d6dde6;border-radius:10px;padding:8px 10px;margin-top:8px;background:#f7f9fc}
 .cand button{padding:8px 10px;white-space:nowrap}
 #stepList input[type=number]{width:76px;padding:4px}
 #stepList select{padding:4px}
 #stepList td{vertical-align:top}
+.wpre{display:flex;gap:4px;margin-top:4px}.wpre button{padding:3px 7px;font-size:12px;border-radius:6px}
 #stepSummary{margin-top:8px}
 #viewPanel.stick{position:sticky;top:8px;z-index:5}
 #parking{display:block;margin:0 auto}
-#viewPanel.stick>h2,#viewPanel.stick>p.small{display:none}
+#viewPanel.stick>p.small{display:none}
+#viewPanel.stick>h2{font-size:16px;margin:0 0 6px}
 #viewPanel.stick{padding:8px 10px}
 #viewPanel.stick .fold{margin-bottom:6px}
 #viewPanel.stick .fold>summary{padding:6px 0}
@@ -77,12 +100,144 @@ button.selected{outline:3px solid #f5c45b}
 .rl-total{font-size:13px;font-weight:800}
 .rot-handle{fill:#8fd3f4;stroke:#0b5d86;stroke-width:2;cursor:alias;touch-action:none;pointer-events:all;opacity:.9}
 .rot-handle:hover{fill:#c8ecfb}
+
+/* v41 mobile: no horizontal overflow, fixed control dock */
+#parkStyle{max-width:100%;min-width:0}
+@media(max-width:760px){
+ html,body{overflow-x:clip}
+ .toolbar{flex-direction:column;align-items:stretch;gap:6px}
+ #parkStyle{width:100%;box-sizing:border-box}
+ body.dock-on{padding-bottom:156px}
+ #viewPanel.stick{align-self:start;top:0;border-radius:0 0 14px 14px;margin-bottom:8px}
+ #viewPanel.stick #parking{max-height:calc(100vh - 290px);width:auto;max-width:100%;display:block;margin:0 auto}
+ #ctrlDock{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#17212d;padding:8px 10px calc(8px + env(safe-area-inset-bottom));display:grid;grid-template-columns:1fr 1fr 96px;grid-template-rows:56px 56px;gap:8px;box-shadow:0 -4px 14px rgba(0,0,0,.25)}
+ #ctrlDock button{margin:0;padding:6px;min-height:44px;font-size:17px;touch-action:none}
+ #ctrlDock #forward{grid-column:1;grid-row:1}
+ #ctrlDock #reverse{grid-column:2;grid-row:1}
+ #ctrlDock #stop{grid-column:1/3;grid-row:2}
+ #ctrlDock .steering-box{grid-column:3;grid-row:1/3;grid-template-columns:1fr;gap:2px;padding:4px;justify-items:center;align-content:center;margin:0}
+ #ctrlDock .steering-box .angle{font-size:15px}
+ #ctrlDock .steering-box .small{display:none}
+ #ctrlDock #steeringWheel{max-width:74px}
+}
+
+/* v42: top bar, guide, simple mode, wheel size, dark mode */
+.topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.top-actions{display:flex;gap:6px;flex-wrap:wrap;padding-top:2px}
+button.chip{padding:6px 12px;font-size:13px;border-radius:999px;min-height:34px;white-space:nowrap}
+.toolbar,.panel{box-shadow:0 1px 2px rgba(20,30,50,.05)}
+html.simple .adv-only,html.simple #settingsPanel,html.simple #stepsPanel,html.simple #diagFold{display:none!important}
+#guideBackdrop{position:fixed;inset:0;background:rgba(10,15,25,.55);z-index:40}
+#guide{position:fixed;inset:0;z-index:41;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
+#guide[hidden],#guideBackdrop[hidden]{display:none}
+.guide-card{background:#fff;color:#202733;border-radius:16px;max-width:520px;width:100%;padding:20px 22px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.guide-card h2{font-size:19px;margin:0 0 12px}
+.guide-steps{list-style:none;counter-reset:g;margin:0 0 12px;padding:0;display:grid;gap:10px}
+.guide-steps li{counter-increment:g;display:grid;grid-template-columns:34px 1fr;column-gap:10px;align-items:start}
+.guide-steps li::before{content:counter(g);grid-row:1/3;width:30px;height:30px;border-radius:50%;background:var(--blue);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center}
+.guide-steps b{font-size:16px}.guide-steps span{font-size:14px;line-height:1.6;color:#4a5668}
+.guide-tip{font-size:13px;line-height:1.7;background:#f1f5fb;border-radius:10px;padding:9px 12px;color:#3e4958;margin:0 0 14px}
+.guide-actions{display:flex;justify-content:flex-end}.guide-actions button{min-width:140px;min-height:44px;font-size:16px}
+.steering-box{grid-template-columns:1fr 200px}
+#steeringWheel{max-width:200px}
+@media(max-width:760px){.steering-box{grid-template-columns:1fr 170px}}
+html.dark{color-scheme:dark}
+html.dark body{background:#14181f;color:#dfe4ec}
+html.dark .intro,html.dark .mode-note,html.dark .small,html.dark .parameter-grid label,html.dark .conditions,html.dark .inputGroup>.group-note{color:#a3afc0}
+html.dark .toolbar,html.dark .panel{background:#1c222c;border-color:#2e3745;box-shadow:none}
+html.dark select,html.dark input[type=number],html.dark input[type=text]{background:#11151c;color:#dfe4ec;border-color:#3a4555}
+html.dark button{background:#262e3a;color:#e6ebf2;border-color:#3a4555}
+html.dark button.primary{background:#3f6fb5;border-color:#5b8bd0;color:#fff}
+html.dark button.danger{background:#4a2a2a;border-color:#7a3f3f;color:#ffd9d6}
+html.dark .inputGroup{background:#18202c;border-color:#35527f}
+html.dark .inputGroup .panel{border-color:#2e3a4d}
+html.dark .fold,html.dark .diagnostics,html.dark .cand,html.dark .conditions,html.dark .tire-total{background:#212a36;border-color:#33404f;color:#d4dbe6}
+html.dark .fold>summary{color:#d4dbe6}
+html.dark .fold>summary::before{color:#9aa8ba}
+html.dark .diag-item,html.dark .seg-table th,html.dark .seg-table td{border-color:#33404f}
+html.dark .seg-table th{background:#212a36}
+html.dark .diag-note{color:#93a0b2}
+html.dark #custBox{background:#1b2431;border-color:#33425a}
+html.dark #uInfoBox{background:#1b2431!important}
+html.dark #viewPanel{border-color:#3d6b52}
+html.dark .io-out{background:#1f3a2a;color:#9fe0b4}
+html.dark .io-in{background:#1f3350;color:#a8c8f5}
+html.dark .io-set{background:#33302a;color:#d8cfb8}
+html.dark #steerChart{background:#fff}
+html.dark #parking{filter:brightness(.93)}
+html.dark .mode2help,html.dark #custBox .small,html.dark #planStatus,html.dark .inputGroup>.group-note,html.dark .tire-check{color:#b4bfce}
+html.dark .diagnostics{color:#d4dbe6}
+html.dark #warning{background:#f0f7ef}
+html.dark #stepList input,html.dark #stepList select{background:#11151c;color:#dfe4ec}
+@media(max-width:760px){.drive-buttons:not(:has(button:nth-child(2))){grid-template-columns:1fr}}
+html.dark .guide-card{background:#1c222c;color:#e1e6ee}
+html.dark .guide-steps span{color:#aab6c6}
+html.dark .guide-tip{background:#222b38;color:#c3cddb}
+@media(max-width:760px){
+ body.dock-on{padding-bottom:176px}
+ #viewPanel.stick #parking{max-height:calc(100vh - 310px)}
+ #ctrlDock{grid-template-columns:1fr 1fr 116px;grid-template-rows:60px 60px}
+ #ctrlDock #steeringWheel{max-width:92px}
+ #ctrlDock .steering-box .angle{font-size:16px}
+}
+
+/* v43: undo in dock, landscape phone layout */
+#undo:disabled{opacity:.45;cursor:default}
+@media(max-width:760px){
+ #ctrlDock #stop{grid-column:1;grid-row:2}
+ #ctrlDock #undo{grid-column:2;grid-row:2;font-size:14px}
+}
+@media(orientation:landscape) and (max-height:520px){
+ body{padding:6px 10px}
+ .topbar{flex-wrap:nowrap;align-items:center}
+ h1{font-size:16px;margin:0}
+ .intro,#modeNote{display:none}
+ .toolbar{flex-direction:row!important;align-items:center!important;flex-wrap:wrap;padding:4px 10px;margin-bottom:6px;gap:8px}
+ #parkStyle{width:auto!important;max-width:46vw;padding:5px}
+ .sub-l{display:none}
+ #passBox{font-size:13px!important;white-space:nowrap}
+ .panel>h2,.cockpit-title span:first-child{display:none}
+ .cockpit-title{justify-content:flex-end}
+ .steering-box .small{display:none}
+ .steering-box{grid-template-columns:1fr 100px!important}
+ #steeringWheel{max-width:96px!important}
+ .workspace,.workspace.m2{display:grid!important;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)!important;gap:8px;align-items:start}
+ #viewPanel.stick{position:sticky;top:0;align-self:start;max-height:calc(100vh - 12px);border-radius:12px;padding:6px 8px}
+ #viewPanel.stick #parking{max-height:calc(100vh - 108px)!important;width:auto;max-width:100%;margin:0 auto}
+ #viewPanel.stick>h2{display:none}
+ #viewPanel.stick #warning{padding:4px 8px;margin-top:4px;font-size:12px}
+ .right-col,.right-stack{gap:8px}
+ .panel{padding:8px 10px;margin-bottom:8px}
+ .inputGroup{padding:6px 6px 0;margin-bottom:8px}
+ .inputGroup>h2,.inputGroup>.group-note{display:none}
+ .inputGroup .right-stack{padding-bottom:6px}
+ .panel h2{font-size:14px;margin:0 0 4px}
+ .cockpit-title{margin-bottom:4px;font-size:13px}
+ .steering-box{grid-template-columns:1fr 120px!important;padding:6px 8px;gap:6px}
+ #steeringWheel{max-width:112px}
+ .angle{font-size:16px}
+ .drive-buttons{margin-top:6px;gap:6px}
+ .drive-buttons button{padding:8px 6px;min-height:44px}
+ button.chip{min-height:30px;padding:4px 10px}
+}
+
+.seg{display:inline-flex;align-items:center;gap:0;vertical-align:middle;border:1px solid #b9c3d0;border-radius:10px;overflow:hidden;background:#fff}
+.seg-label{padding:0 8px;font-size:13px;color:#4a5668}
+.seg button{border:0;border-left:1px solid #b9c3d0;border-radius:0;margin:0;padding:8px 13px;font-size:14px;background:transparent;min-width:40px}
+.seg button[aria-pressed=true]{background:var(--blue);color:#fff;font-weight:700}
+html.dark .seg{background:#262e3a;border-color:#3a4555}html.dark .seg-label{color:#a3afc0}html.dark .seg button{border-left-color:#3a4555;color:#e6ebf2;background:transparent}html.dark .seg button[aria-pressed=true]{background:#3f6fb5;color:#fff}
+@media(orientation:landscape) and (max-height:520px){.seg button{padding:5px 10px}}
 </style>
 </head>
 <body>
 <main>
-  <h1>駐車練習シミュレーター</h1>
-  <p class="intro">ハンドル操作と車の動きの関係を、上からの視点で練習します。</p>
+  <div class="topbar"><h1>ハンドル操作シミュレーター</h1>
+    <div class="top-actions">
+      <button type="button" id="helpBtn" class="chip" aria-label="使い方を見る">？ 使い方</button>
+      <button type="button" id="modeBtn" class="chip" aria-pressed="false" title="かんたん：基本の操作だけ／詳細：寸法設定・手順入力・検証値も表示">表示：かんたん</button>
+      <button type="button" id="themeBtn" class="chip" title="画面の明るさ">🌓 自動</button>
+    </div></div>
+  <p class="intro">ハンドルの切り方と車の動き・ぶつかり方を、真上から確かめられます（出庫・入庫・縦列駐車・斜め駐車・Uターン・自由配置）。</p>
 
   <section class="toolbar">
     
@@ -102,7 +257,25 @@ button.selected{outline:3px solid #f5c45b}
         <option value="paraIn">縦列駐車：入庫（前後の車の間に入る）</option>
         <option value="paraOut">縦列駐車：出庫（前後の車の間から出る）</option>
       </optgroup>
+      <optgroup label="斜め駐車（サービスエリアなど）">
+        <option value="angUpFront">上側の枠から出庫（前向き駐車・バックで出庫）</option>
+        <option value="angUpBack">上側の枠から出庫（後ろ向き駐車・前進で出庫）</option>
+        <option value="angDownFront">下側の枠から出庫（前向き駐車・バックで出庫）</option>
+        <option value="angDownBack">下側の枠から出庫（後ろ向き駐車・前進で出庫）</option>
+        <option value="angIn">車路から入庫（上側・下側どちらの空き枠でも）</option>
+      </optgroup>
+      <optgroup label="自由配置（自分で道路状況をつくる）">
+        <option value="custom">自由配置：好きな位置に車や壁を置いて走る</option>
+      </optgroup>
     </select>
+    <label for="vehPreset">車種</label>
+    <select id="vehPreset" title="操作する車の大きさ（ホイールベース・ハンドルの切れ角も変わります）">
+      <option value="sedan">セダン</option>
+      <option value="van">ミニバン</option>
+      <option value="kei">軽自動車</option>
+      <option value="custom">カスタム（手動調整）</option>
+    </select>
+    <label id="passBox" style="display:flex;align-items:center;gap:6px;font-size:14px"><input type="checkbox" id="passThru"> ぶつかっても走り続ける<span class="sub-l">（ぶつかった所を赤く表示）</span></label>
     <span id="uBox" hidden style="display:none;align-items:center;gap:10px;flex-wrap:wrap">
       <label>対向車線 <select id="uOpp"><option value="1">1車線</option><option value="2" selected>2車線</option><option value="3">3車線</option></select></label>
       <label>車線の幅 <input type="number" id="uLane" min="2.75" max="3.75" step="0.05" value="3.25" style="width:68px"> m</label>
@@ -110,42 +283,50 @@ button.selected{outline:3px solid #f5c45b}
     </span>
     <label id="gapBox" hidden style="display:none;align-items:center;gap:6px">空きスペースの長さ
       <input type="number" id="gapLen" min="4.8" max="10" step="0.1" value="6.0" style="width:68px"> m</label>
+    <label id="sideBox" hidden style="display:none;align-items:center;gap:6px" title="両隣に停まっている車（幅1.8 m）の車体と、枠の中心に置いた車体幅1.8 mの車との間のすき間。大きいほど余裕があります">隣の車との間隔
+      <input type="number" id="sideGap" min="0.3" max="2.5" step="0.1" value="0.7" style="width:64px"> m</label>
+    <label id="angBox" hidden style="display:none;align-items:center;gap:6px">駐車枠の角度（車路に対して）
+      <input type="number" id="angDeg" min="40" max="60" step="5" value="45" style="width:60px"> °</label>
+    <div id="custBox" hidden>
+      <div class="crow"><b>置く：</b>
+        <button type="button" data-add="car">＋ 停車中の車</button><button type="button" data-add="wall">＋ 壁・塀</button><button type="button" data-add="building">＋ 建物</button><button type="button" data-add="pole">＋ ポール・柱</button>
+        <span style="flex:1"></span>
+        <button type="button" id="custSetStart" title="いま車がある位置・向きを、リセットで戻る出発位置にします">📍 いまの位置を出発位置にする</button>
+        <button type="button" id="custDup">複製</button><button type="button" id="custDel">削除</button><button type="button" id="custClear">すべて削除</button></div>
+      <div class="crow"><b>選んだもの：</b><span id="custSel" class="small">（なし。置いたものをクリックすると選べます）</span>
+        <label>横幅 <input type="number" id="cW" min="0.2" max="40" step="0.1"> m</label>
+        <label>長さ <input type="number" id="cL" min="0.2" max="40" step="0.1"> m</label>
+        <label>向き <input type="number" id="cA" min="-180" max="180" step="5"> °</label>
+        <label>X <input type="number" id="cX" step="0.1"> m</label>
+        <label>Y <input type="number" id="cY" step="0.1"> m</label></div>
+      <div class="crow"><b>マップ：</b>
+        <label>横 <input type="number" id="custMapW" min="10" max="60" step="1" value="24"> m</label>
+        <label>奥行き <input type="number" id="custMapH" min="8" max="40" step="1" value="14"> m</label>
+        <label><input type="checkbox" id="custGrid" checked> 1 mの目盛り線</label>
+        <span style="flex:1"></span>
+        <button type="button" id="custSave">ファイルに保存</button><button type="button" id="custLoad">ファイルから読み込む</button><input type="file" id="custLoadFile" accept=".json,application/json" hidden></div>
+      <details><summary><b>背景に地図・写真を敷く</b>（家の近くの再現用）</summary>
+        <div class="crow" style="margin-top:6px"><input type="file" id="custImgFile" accept="image/*">
+          <label>画像の横幅 <input type="number" id="ciW" min="2" max="200" step="0.5" value="24"> m</label>
+          <label>左端X <input type="number" id="ciX" step="0.5" value="0"> m</label>
+          <label>上端Y <input type="number" id="ciY" step="0.5" value="0"> m</label>
+          <label>濃さ <input type="range" id="ciOp" min="10" max="100" value="60" style="width:100px"></label>
+          <button type="button" id="ciDel">背景を消す</button></div>
+        <div class="small" style="margin-top:4px">地図アプリのスクリーンショットなどを読み込み、地図の縮尺バー（例：10 m）に合わせて「画像の横幅」を調整してください。画像は端末の中だけで使い、どこにも送信しません。</div></details>
+      <div class="small">ドラッグで移動／黄色い丸で大きさ・水色の丸で向き。<b>操作対象車（オレンジ）もドラッグ・回転でき、置いた位置が出発位置になります。</b>配置はこの端末のブラウザに自動保存されます（背景画像は「ファイルに保存」に含まれます）。</div>
+    </div>
     <div id="uInfoBox" class="small" style="display:none;flex-basis:100%;background:#eef3fb;border-radius:6px;padding:6px 8px"><span id="uInfo"></span></div>
-    <div class="mode-note" id="modeNote">ハンドルを回して前進・バックで動かすか、「手順を入力して走らせる」に距離とハンドル角を打ち込んで走らせます。</div>
+    <div class="mode-note" id="modeNote"></div>
   </section>
 
   <div class="workspace">
     <section class="panel stick" id="viewPanel">
-      <h2>駐車場（上からの視点）</h2>
-      <details class="fold" id="condFold">
-        <summary>駐車エリア・車両サイズ・車路幅</summary>
-      <div class="conditions">
-        <div><strong>駐車エリア：</strong>幅 2.5 m × 奥行 5.0 m（縮尺 40 SVG単位/m）</div>
-        <div><strong>車両サイズ：</strong><span id="vehicleSummary">幅 1.8 m × 全長 4.5 m（ホイールベース 2.7 m）</span></div>
-        <div><strong>車路幅：</strong><span id="roadSummary">5.0 m</span>（車路の下端の黄色い点線をドラッグして変更）</div>
-        <div class="small">「📏 定規」で距離を測れます（両端で伸ばす・回す、中央で移動）。操作対象車（オレンジ）は、つまんでドラッグすると位置を動かせ、水色の丸（車の後ろ側の角）をドラッグすると向きを変えられます。車体サイズ変更：黄色い丸をドラッグしてください。周囲の車はクリックして選択できます。</div>
-      </div>
-      </details>
-      <details class="fold" id="tirePanel">
-        <summary>タイヤ位置・寸法（操作対象車）</summary>
-        <p class="small" style="margin:0 0 6px">数値入力のほか、駐車場図の緑の丸（前輪軸・後輪軸）を上下にドラッグしても変更できます。ドラッグでは全長は変わらず、ホイールベースと前後のはみ出しが入れ替わります。数値入力では、全長はホイールベース＋前後のはみ出しの合計になります。</p>
-        <div class="tire-grid">
-          <label>ホイールベース（m）<input id="inWheelbase" type="number" step="0.05" min="1.5" max="4.5"></label>
-          <label>全長（m）<input id="inLength" type="number" step="0.05" min="3" max="6.5"></label>
-          <label>前輪軸から前端（m）<input id="inFront" type="number" step="0.05" min="0.2" max="2"></label>
-          <label>後輪軸から後端（m）<input id="inRear" type="number" step="0.05" min="0.2" max="2"></label>
-          <label>最大タイヤ角（°）<input id="inSteer" type="number" step="0.5" min="20" max="45"></label>
-          <div class="tire-total" id="tireTotal"></div>
-        </div>
-        <label class="tire-check"><input id="showDims" type="checkbox" checked>駐車場図に寸法と車軸の丸（緑）を表示する</label>
-      </details>
-      <div class="ovrow" style="margin-bottom:8px"><button id="toggleOverlay" type="button" style="padding:8px 12px;font-size:14px">寸法・緑の丸を非表示にする</button> <button id="rulerBtn" type="button" style="padding:8px 12px;font-size:14px">📏 定規を表示</button> <button id="rulerAdd" type="button" hidden style="padding:8px 12px;font-size:14px">＋ 定規を追加</button></div>
+      <h2><span class="io-badge io-out">出力</span>走行画面（上からの視点）</h2>
+      <div class="ovrow" style="margin-bottom:8px"><button id="toggleOverlay" type="button" style="padding:8px 12px;font-size:14px">寸法・丸を表示する</button> <span class="seg" id="speedSeg" role="group" aria-label="進む速さ"><span class="seg-label">速さ</span><button type="button" data-sp="0.28" aria-pressed="false">低</button><button type="button" data-sp="0.55" aria-pressed="true">中</button><button type="button" data-sp="1.1" aria-pressed="false">高</button></span> <button id="trailBtn" type="button" style="padding:8px 12px;font-size:14px" aria-pressed="false">軌跡を表示</button> <button id="rulerBtn" class="adv-only" type="button" style="padding:8px 12px;font-size:14px">📏 定規を表示</button> <button id="rulerAdd" type="button" hidden style="padding:8px 12px;font-size:14px">＋ 定規を追加</button></div>
       <svg id="parking" viewBox="0 0 560 600" role="img" aria-label="上から見た駐車場">
         <defs>
           <g id="parkedCar">
-            <rect x="-36" y="-90" width="72" height="180" rx="10" fill="#4778c6" stroke="#19365f" stroke-width="2"/>
-            <rect x="-26" y="-58" width="52" height="42" rx="5" fill="#b9d7eb"/>
-            <rect x="-26" y="20" width="52" height="42" rx="5" fill="#b9d7eb"/>
+            <g id="parkedArt"></g>
             <rect id="parkWheelRL" x="-40" y="-67.5" width="8" height="27" rx="2" fill="#171717"/>
             <rect id="parkWheelRR" x="32" y="-67.5" width="8" height="27" rx="2" fill="#171717"/>
             <rect id="parkWheelFL" x="-40" y="40.5" width="8" height="27" rx="2" fill="#171717"/>
@@ -157,6 +338,8 @@ button.selected{outline:3px solid #f5c45b}
         <rect id="bottomRow" x="0" y="400" width="560" height="200" fill="#bcbcbc"/>
         <rect id="roadRect" x="0" y="200" width="560" height="200" fill="#a6a6a6"/>
         <g id="uLayer" pointer-events="none" display="none"></g>
+        <image id="custImg" display="none" pointer-events="none" preserveAspectRatio="none"/>
+        <g id="custLayer" display="none"></g>
         <g stroke="#fff" stroke-width="4">
           <path id="topLines" d="M30 0V200 M130 0V200 M230 0V200 M330 0V200 M430 0V200 M530 0V200" />
           <path id="bottomLines" d="M30 400V600 M130 400V600 M230 400V600 M330 400V600 M430 400V600 M530 400V600" />
@@ -170,23 +353,23 @@ button.selected{outline:3px solid #f5c45b}
         <!-- 初期描画も後輪軸中心 (180,154) に合わせる。車体中心は (180,100)。 -->
         <g id="playerCar" transform="translate(280 154) rotate(-180)" style="cursor:grab;touch-action:none">
           <g id="carBody">
-            <rect x="-36" y="-36" width="72" height="180" rx="10" fill="#f08032" stroke="#8c4b0d" stroke-width="2"/>
-            <rect x="-26" y=" -21" width="52" height="42" rx="5" fill="#d5e8f2" stroke="#8c4b0d"/>
-            <rect x="-26" y="57" width="52" height="42" rx="5" fill="#d5e8f2" stroke="#8c4b0d"/>
+            <g id="carArt"></g>
             <rect id="wheelRL" x="-40" y="-70" width="8" height="27" rx="2" fill="#181818" stroke="#555"/>
             <rect id="wheelRR" x="32" y="-70" width="8" height="27" rx="2" fill="#181818" stroke="#555"/>
             <rect id="wheelFL" x="-40" y="43" width="8" height="27" rx="2" fill="#181818" stroke="#555"/>
             <rect id="wheelFR" x="32" y="43" width="8" height="27" rx="2" fill="#181818" stroke="#555"/>
-            <path d="M-12 126 L0 136 L12 126" stroke="#8c4b0d" stroke-width="2" fill="none"/>
           </g>
         </g>
         <!-- 下側5台 -->
+        <g id="trailLayer" pointer-events="none"></g>
         <use id="parkedVisual4" class="car-select" href="#parkedCar" x="80" y="500"/>
         <use id="parkedVisual5" class="car-select" href="#parkedCar" x="180" y="500"/>
         <use id="parkedVisual6" class="car-select" href="#parkedCar" x="280" y="500"/>
         <use id="parkedVisual7" class="car-select" href="#parkedCar" x="380" y="500"/>
         <use id="parkedVisual8" class="car-select" href="#parkedCar" x="480" y="500"/>
         <g id="goalLayer" pointer-events="none"></g>
+        <g id="hitLayer" pointer-events="none"></g>
+        <g id="custHandles" display="none"></g>
         <g id="dimLayer" pointer-events="none"></g>
         <g id="axleHandles">
           <circle id="axleRear" class="axle-handle" r="9" cx="0" cy="0"/>
@@ -213,14 +396,43 @@ button.selected{outline:3px solid #f5c45b}
       </div>
     </section>
 
+    <div class="right-col">
+    <section class="panel" id="settingsPanel">
+      <h2><span class="io-badge io-set">設定</span>車・道路の設定</h2>
+      <details class="fold" id="condFold">
+        <summary>駐車エリア・車両サイズ・車路幅</summary>
+      <div class="conditions">
+        <div><strong>駐車エリア：</strong>幅 <span id="slotWidthText">2.5</span> m × 奥行 5.0 m（縮尺 40 SVG単位/m）</div>
+        <div><strong>車両サイズ：</strong><span id="vehicleSummary">幅 1.8 m × 全長 4.5 m（ホイールベース 2.7 m）</span></div>
+        <div><strong>車路幅：</strong><span id="roadSummary">5.0 m</span>（車路の下端の黄色い点線をドラッグして変更）</div>
+        <div class="small">「📏 定規」で距離を測れます（両端で伸ばす・回す、中央で移動）。操作対象車（オレンジ）は、つまんでドラッグすると位置を動かせ、水色の丸（車の後ろ側の角）をドラッグすると向きを変えられます。車体サイズ変更：「寸法・丸を表示する」を押して、黄色い丸をドラッグしてください。周囲の車はクリックして選択できます。</div>
+      </div>
+      </details>
+      <details class="fold" id="tirePanel">
+        <summary>タイヤ位置・寸法（操作対象車）</summary>
+        <p class="small" style="margin:0 0 6px">数値入力のほか、駐車場図の緑の丸（前輪軸・後輪軸）を上下にドラッグしても変更できます。ドラッグでは全長は変わらず、ホイールベースと前後のはみ出しが入れ替わります。数値入力では、全長はホイールベース＋前後のはみ出しの合計になります。</p>
+        <div class="tire-grid">
+          <label>ホイールベース（m）<input id="inWheelbase" type="number" step="0.05" min="1.5" max="4.5"></label>
+          <label>全長（m）<input id="inLength" type="number" step="0.05" min="3" max="6.5"></label>
+          <label>前輪軸から前端（m）<input id="inFront" type="number" step="0.05" min="0.2" max="2"></label>
+          <label>後輪軸から後端（m）<input id="inRear" type="number" step="0.05" min="0.2" max="2"></label>
+          <label>最大タイヤ角（°）<input id="inSteer" type="number" step="0.5" min="20" max="45"></label>
+          <div class="tire-total" id="tireTotal"></div>
+        </div>
+        <label class="tire-check"><input id="showDims" type="checkbox">図に寸法と丸（緑：車軸、黄：サイズ変更、水色：向き変更）を表示する</label>
+      </details>
+    </section>
+    <div class="inputGroup">
+    <h2><span class="io-badge io-in">入力</span>車の動かし方<span class="adv-only">（2通り）</span></h2>
+    <p class="group-note">結果は走行画面にそのまま表示されます。</p>
     <div class="right-stack">
       <section class="panel">
-        <h2>運転席の操作パネル</h2>
+        <h2><span class="adv-only">1. </span>ハンドル操作による走行</h2>
         <div class="cockpit-title"><span>ハンドル・走行操作</span><span id="gear">停止中</span></div>
           <div class="steering-box">
             <div>
               <div class="angle">ハンドル角 <span id="steeringValue">0°</span></div>
-              <div class="small" style="color:#d2dbe4;text-align:center;margin-top:4px">下のハンドルをドラッグして回転</div>
+              <div class="small" style="color:#d2dbe4;text-align:center;margin-top:4px">ハンドルをドラッグして回す</div>
             </div>
             <svg id="steeringWheel" viewBox="0 0 160 160" aria-label="ドラッグして操作するハンドル">
               <circle cx="80" cy="80" r="59" fill="none" stroke="#111923" stroke-width="19"/>
@@ -238,6 +450,9 @@ button.selected{outline:3px solid #f5c45b}
           </div>
           <div class="drive-buttons">
             <button id="stop">■ 停止</button>
+            <button id="undo" type="button" disabled>↩ ひとつ前に戻す</button>
+          </div>
+          <div class="drive-buttons" style="grid-template-columns:1fr">
             <button id="reset" class="danger">位置・サイズをリセット</button>
           </div>
           <details class="diagnostics fold" id="diagFold">
@@ -254,8 +469,8 @@ button.selected{outline:3px solid #f5c45b}
           </details>
       </section>
       <section class="panel" id="stepsPanel">
-        <h2>手順を入力して走らせる</h2>
-        <p class="mode2help">駐車した位置（出発位置）から、<strong>前進／バック・距離・ハンドル角</strong>を順に打ち込むと、その通りに走ったときの車の動きと、他の車に当たるかを確かめられます。「▶ 再現」で出発位置から走らせます。ハンドルを回して動かす操作（上の運転席パネル）とは独立して使えます。</p>
+        <h2>2. 手順入力による走行</h2>
+        <p class="mode2help"><span id="startDesc">出発位置</span>から、<strong>前進／バック・距離・ハンドル角</strong>を順に打ち込むと、その通りに走ったときの車の動きと、他の車に当たるかを確かめられます。「▶ 再現」で出発位置から走らせます。ハンドルを回して動かす操作（上の「1. ハンドル操作による走行」）とは独立して使えます。</p>
         <svg id="steerChart" viewBox="0 0 520 210" role="img" aria-label="走行距離とハンドル回転角のグラフ"></svg>
         <div class="small" style="margin-top:4px"><span style="color:#2f6fd6;font-weight:700">━</span> 前進　<span style="color:#e07b1a;font-weight:700">━</span> バック　<span style="color:#d32f2f;font-weight:700">●</span> 最大切れ角を超える指定　<span style="background:#ffcdd2;padding:0 6px;border-radius:3px">赤い帯</span> 他の車と接触した区間</div>
         <div id="stepList"></div>
@@ -268,9 +483,25 @@ button.selected{outline:3px solid #f5c45b}
         <div id="stepSummary"></div>
       </section>
     </div>
+    </div>
+    </div>
   </div>
-  <p class="small">注意：これは学習用の簡易シミュレーターです。車体を長方形として接触判定しますが、タイヤ・ミラー・車体形状や実車の挙動を完全には再現しません。実際の運転では目視で安全確認を行ってください。</p>
+  <p class="small">ご利用にあたって：これは学習用の簡易シミュレーターです。実際の運転の安全や、道路交通法上の可否を保証するものではありません。車体は長方形として接触を判定し、タイヤ・ミラー・車体形状、路面や速度の影響、左右のタイヤの角度差などは再現していません。表示される手順や数値は目安です。実際の運転では目視で安全を確認し、交通ルールに従ってください。</p>
+  <!-- 作者名・連絡先（問い合わせ先）を入れる場合は、この下に <p class="small">…</p> を追加してください -->
 </main>
+<div id="guide" role="dialog" aria-modal="true" aria-labelledby="guideTitle" hidden>
+  <div class="guide-card">
+    <h2 id="guideTitle">はじめての方へ：3ステップで試せます</h2>
+    <ol class="guide-steps">
+      <li><b>場面を選ぶ</b><span>画面上の「場面」から、出庫・入庫・縦列駐車・斜め駐車・Uターン・自由配置を選びます。</span></li>
+      <li><b>ハンドルを回す</b><span>ハンドルを指かマウスでドラッグして、切りたい向きに回します（スマホは画面下のハンドル）。</span></li>
+      <li><b>前進・バックを押し続ける</b><span>押している間だけ車が動きます。隣の車や壁に近づくと警告が出ます。</span></li>
+    </ol>
+    <p class="guide-tip">目標は、ぶつからずに出庫・入庫すること。うまくいかなければ「位置をリセット」でやり直せます。<br>「表示：かんたん」を「詳細」にすると、寸法の変更や手順入力も使えます。</p>
+    <div class="guide-actions"><button type="button" id="guideOk" class="primary">はじめる</button></div>
+  </div>
+</div>
+<div id="guideBackdrop" hidden></div>
 <script>
 var ROT_CORNERS=[[-1,-1]];   // 後ろ側の角1か所（黄色いサイズ変更ハンドルの対角）
 var rotHandlesCache=null;
@@ -300,13 +531,46 @@ const isPara=()=>paraMode;
 // Uターン：交差点の右折レーンから。図は縦長。北向きに停止線の手前から出発し、南向きの対向車線へ戻る。
 var uMode=false;
 const isU=()=>uMode;
+var custMode=false;   // 自由配置モード
+const isCust=()=>custMode;
+let custW=24, custH=14;   // マップの広さ(m)
+let custObs=[], custSel=-1, custImg=null, custStart=null, custGrid=true;
+var angMode=false;   // 斜め駐車（サービスエリア型）。車路は一方通行で右向き、枠は右上がりに傾く
+const isAng=()=>angMode;
+const ANG_SCENES=['angUpFront','angUpBack','angDownFront','angDownBack','angIn'], ANG_BOT=200;
+let angRows=null;   // 各列に置く周囲の車の枠番号（0〜4）
+let angDeg=45;
+/* v54: 駐車枠の幅＝車体幅(1.8 m)＋隣の車との間隔。初期は間隔0.7 m（枠の幅2.5 m） */
+var sideGap=0.7;
+try{const v=parseFloat(localStorage.getItem('parkSimSideGapV1'));if(isFinite(v))sideGap=Math.max(0.3,Math.min(2.5,v));}catch(e){}
+function SLOT(){const g=(typeof sideGap==='number'&&isFinite(sideGap))?sideGap:0.7;return 72+g*SCALE_U;}
+const SCALE_U=40;
+function perpW(){return 5*SLOT()+60;}
+function perpCx(){return 30+2.5*SLOT();}
+function perpLayout(){   // 直角の場面：隣の車と白線を、枠の幅に合わせて置き直す
+  const P=SLOT(), cx=i=>30+(i+0.5)*P;
+  [0,1,3,4].forEach((si,k)=>{if(otherCars[k])otherCars[k].x=cx(si);});
+  for(let i=0;i<5;i++)if(otherCars[4+i])otherCars[4+i].x=cx(i);
+  document.getElementById('topLines').setAttribute('d',[0,1,2,3,4,5].map(i=>`M${30+i*P} 0V200`).join(' '));
+}
+function angGeom(){   // 斜め枠の寸法。枠の幅は車路に垂直な向きで2.5 m。車の中心は車路側の角が車路の縁から約20cm内側になる位置
+  const th=angDeg*Math.PI/180, sn=Math.sin(th), cs=Math.cos(th), L=180, W=72;
+  const sp=SLOT()/sn;
+  const cy=ROAD_TOP-8-sn*L/2-cs*W/2;
+  const dx=(ROAD_TOP-cy)/Math.tan(th);
+  const hx=(L/2)*cs+(W/2)*sn;
+  const x0=hx+40-dx;
+  const V=ROAD_TOP-8-cy;   // 車体の上下方向の半分の広がり
+  return {th,sn,cs,sp,cy,dx,hx,V,x0,VW:Math.ceil(4*sp+2*hx+80),cx:i=>x0+i*sp+dx,P:i=>({x:x0+i*sp,y:ROAD_TOP}),cyBot:h=>ROAD_TOP+h+8+V,PB:(i,h)=>({x:x0+i*sp+2*dx,y:ROAD_TOP+h})};
+}
 var UG=null;   // 現在の交差点の寸法（applyScene/applyRoad が作る）
-const U_SW=60, U_NH=140, U_NL=2;   // 歩道幅(1.5m)、北側の道路の見える長さ、手前側の車線数
+const U_SW=60, U_NL=2;   // 歩道幅(1.5m)、北側の道路の見える長さ、手前側の車線数
 let uOpp=2, uLane=3.25, uMedian=0;
 function uGeom(){
   const LW=uLane*SCALE, MW=uMedian*SCALE, xW=U_SW;
   const xC=xW+U_NL*LW, xO=xC+MW, xE=xO+uOpp*LW;      // 手前側の右端(センターライン)、対向車線の左端、対向車線の右端(縁石)
-  const BD=3*LW, boxT=U_NH, boxB=U_NH+BD, stopY=boxB+120, H=stopY+12+180+110;
+  const BD=1.5*LW, boxT=0, boxB=BD,   // 交差点は、車が向かう側の半分から先は表示しない（図の上端＝交差点の中央付近）
+       stopY=boxB+120, H=stopY+12+180+110;
   return {LW,MW,xW,xC,xO,xE,BD,boxT,boxB,stopY,H,W:xE+U_SW,startX:xW+(U_NL-0.5)*LW};
 }
 const PARA_H=800, PARA_SW=100, PARA_KX=100, PARA_X=148;   // 図の高さ、歩道の幅、縁石のX、駐車車両の中心X（縁石から約30cm離す）
@@ -314,11 +578,18 @@ let gapLen=6.0;                             // 空きスペースの長さ(m)
 // 添字0＝後ろの車（下）／添字1＝前の車（上）。車はすべて上向き(π)。
 const paraNeighbours=()=>{const h=gapLen*SCALE/2;return [PARA_H/2+h+90,PARA_H/2-h-90];};
 function startPoseFor(style){
+  if(style==='custom'){if(!custStart)custStart={x:3*SCALE,y:custH*SCALE/2,angle:Math.PI/2};return {...custStart};}
+  if(ANG_SCENES.includes(style)){const G=angGeom();
+    if(style==='angIn')return {x:G.P(2).x-150,y:ROAD_TOP+roadH*0.5,angle:Math.PI/2};
+    const a=Math.PI/2+G.th, down=style==='angDownFront'||style==='angDownBack', front=style==='angUpFront'||style==='angDownFront';
+    // 上側：前向き＝右上向き／後ろ向き＝左下向き　下側：前向き＝左下向き／後ろ向き＝右上向き
+    const ang2=(down===front)?a+Math.PI:a;
+    return {x:G.cx(2),y:down?G.cyBot(roadH):G.cy,angle:ang2};}
   if(style==='enter')return {x:110,y:ROAD_TOP+roadH*0.45,angle:Math.PI/2};
   if(style==='uturn'){UG=uGeom();return {x:UG.startX,y:UG.stopY+12+90,angle:Math.PI};}
   if(style==='paraOut')return {x:PARA_X,y:PARA_H/2,angle:Math.PI};
   if(style==='paraIn')return {x:PARA_X+72+40,y:paraNeighbours()[1],angle:Math.PI};   // 前（上）の車の真横に1m離して止まる
-  return {x:280,y:100,angle:START_ANGLE[style]};
+  return {x:perpCx(),y:100,angle:START_ANGLE[style]};
 }
 let VIEW_W=560;   // 図の幅（SVG単位）。駐車枠は幅100（2.5m）×5列＋左右の余白
 const start = {x:280, y:100, angle:START_ANGLE.front};
@@ -326,10 +597,10 @@ let angle=start.angle;
 const SCALE=40;
 const ROAD_TOP=200, ROW_H=200; let ROAD_MIN=120, ROAD_MAX=320; // 車路上端のY、駐車列の高さ、車路幅の下限/上限（SVG単位。40単位=1m）
 let roadH=200; // 現在の車路幅（SVG単位）
-function svgHeight(){return uMode?UG.H:paraMode?PARA_H:ROAD_TOP+roadH+ROW_H;}
+function svgHeight(){return custMode?custH*SCALE:uMode?UG.H:paraMode?PARA_H:ROAD_TOP+roadH+(angMode?ANG_BOT:ROW_H);}
 const WB_MIN=1.5, WB_MAX=4.5, OH_MIN=0.2, OH_MAX=2.0, LEN_MIN=3.0, LEN_MAX=6.5; // タイヤ位置・全長の許容範囲(m)
 const WHEELBASE_RATIO=0.6; // 周囲の車のタイヤ間隔（全長に対する比率）に合わせる
-const DEFAULT_VEHICLE={length:4.5,width:1.8,wheelbase:2.7,frontOverhang:0.9,rearOverhang:0.9}; // サイズリセット用の初期値
+const DEFAULT_VEHICLE={length:4.5,width:1.8,wheelbase:2.7,frontOverhang:0.9,rearOverhang:0.9,maxSteeringAngle:30}; // サイズリセット用の初期値
 let params={...DEFAULT_VEHICLE,maxSteeringAngle:30,lockToLock:900};
 // シミュレーション状態は後輪軸中心。描画車体は後輪軸から
 // front=(wheelbase+frontOverhang)、rear=rearOverhang の範囲に描く。
@@ -344,7 +615,8 @@ function rearAxleForBodyCenter(cx,cy,a){
 const initialRear = rearAxleForBodyCenter(start.x,start.y,start.angle);
 let rearX=initialRear.x, rearY=initialRear.y;
 let movement=0, steering=0, shownGear=0;   // movement: 実際に車を動かす指示（ボタン）／shownGear: 手順の再現中に表示する向き
-const speed=0.55;
+let speed=0.55;   // 中（初期値）
+let passThru=false;   // true：ぶつかっても走行を続ける（接触部分は赤く表示）
 let lastTime=0, playingPath=false;
 const otherCars=[
   // 上段（操作対象車の左右2台ずつ）：添字 0〜3 ／ 下段（反対側の列）：添字 4〜8
@@ -398,10 +670,13 @@ function collisionAt(cx,cy,a,margin=0){
     if(corners.some(p=>(p.y<UG.boxT||p.y>UG.boxB)&&(p.x<UG.xW||p.x>UG.xE))) return 'boundary';
   }
   // margin>0：車体を全周これだけ(SVG単位。1単位=2.5cm)広げて、周囲の車とのすきまを確かめる
+  const test0=0;
   const test=margin>0?(()=>{const g=vehicleGeometry();return carCorners(cx,cy,a,{halfWidth:g.halfWidth+margin,front:g.front+margin,rear:g.rear+margin});})():corners;
   for(const c of otherCars){ if(rectanglesOverlap(test,parkedCarCorners(c.x,c.y,c.angle,c))) return 'car'; }
+  if(custMode){for(const o of custObs){ if(rectanglesOverlap(test,parkedCarCorners(o.x,o.y,o.a,o))) return 'car'; }}
   if(uMode&&UG.MW>0){   // 中央分離帯（交差点の手前側・奥側に1本ずつ）
     for(const [y1,y2] of [[0,UG.boxT],[UG.boxB,UG.H]]){
+      if(y2-y1<=0)continue;
       const r=[{x:UG.xC,y:y1},{x:UG.xO,y:y1},{x:UG.xO,y:y2},{x:UG.xC,y:y2}];
       if(rectanglesOverlap(test,r)) return 'car';
     }
@@ -422,6 +697,7 @@ function applySteerInput(commit){
   const raw=parseFloat(inSteer.value);
   if(!isFinite(raw)||(!commit&&(raw<STEER_MIN||raw>STEER_MAX)))return;
   params.maxSteeringAngle=clamp(raw,STEER_MIN,STEER_MAX);
+  if(vehReady)syncPreset();
   clearRec();invalidatePlan();
   if(typeof steps!=='undefined'&&steps.length){resim();renderSteps();}
   if(typeof updateUInfo==='function')updateUInfo();
@@ -431,11 +707,12 @@ inSteer.addEventListener('input',()=>applySteerInput(false));
 inSteer.addEventListener('change',()=>{applySteerInput(true);inSteer.value=params.maxSteeringAngle.toFixed(1);});
 const tireInputs={wb:document.getElementById('inWheelbase'),len:document.getElementById('inLength'),fo:document.getElementById('inFront'),ro:document.getElementById('inRear')};
 function updateVehicleSummary(skipKey=null){
-  document.getElementById('vehicleSummary').textContent=`幅 ${params.width.toFixed(1)} m × 全長 ${params.length.toFixed(2)} m（ホイールベース ${params.wheelbase.toFixed(2)} m）`;
+  document.getElementById('vehicleSummary').textContent=`幅 ${params.width.toFixed(2)} m × 全長 ${params.length.toFixed(2)} m（ホイールベース ${params.wheelbase.toFixed(2)} m）`;
   for(const [k,v] of [['wb',params.wheelbase],['len',params.length],['fo',params.frontOverhang],['ro',params.rearOverhang]]){
     if(k!==skipKey) tireInputs[k].value=v.toFixed(2);   // いま打ち込んでいる欄だけは書き換えない
   }
   if(skipKey!=='steer')inSteer.value=params.maxSteeringAngle.toFixed(1);
+  if(vehReady)syncPreset();
   document.getElementById('tireTotal').textContent=`後端 ←${params.rearOverhang.toFixed(2)}→ 後輪軸 ←${params.wheelbase.toFixed(2)}→ 前輪軸 ←${params.frontOverhang.toFixed(2)}→ 前端（合計 ${params.length.toFixed(2)} m）`;
 }
 function updateDimensions(){
@@ -473,26 +750,7 @@ function updateDisplay(){
   const center=vehicleCenter(), g=vehicleGeometry();
   car.setAttribute('transform',`translate(${rearX} ${rearY}) rotate(${-angle*180/Math.PI})`);
   // 描画寸法・車軸位置を入力パラメータに追従させる
-  const body=document.querySelector('#carBody > rect:first-child');
-  body.setAttribute('fill',collisionAt(rearX,rearY,angle)==='car'?'#e53935':'#f08032');   // 他の車と重なっている間は赤
-  body.setAttribute('x',-g.halfWidth);body.setAttribute('y',-g.rear);body.setAttribute('width',g.halfWidth*2);body.setAttribute('height',g.front+g.rear);
-  // 窓／座席に見える水色パーツも、車体寸法に合わせて車体内に収める。
-  const interiorWidth=Math.max(24,g.halfWidth*2-20);
-  const rearWindow=document.querySelector('#carBody > rect:nth-child(2)');
-  const frontWindow=document.querySelector('#carBody > rect:nth-child(3)');
-  // 周囲の車と同じ比率の窓にし、後輪軸基準ではなく車体中心を基準に前後対称に配置。
-  const bodyLength=g.front+g.rear;
-  const windowLength=Math.min(42,Math.max(30,bodyLength*0.233));
-  // 車体中心は後輪軸から (前端距離 - 後端距離)/2 だけ前方にある
-  const centerOffset=(g.front-g.rear)/2;
-  const windowOffset=Math.min(37,bodyLength*0.206);
-  rearWindow.setAttribute('x',-interiorWidth/2);rearWindow.setAttribute('width',interiorWidth);
-  rearWindow.setAttribute('y',centerOffset-windowOffset-windowLength/2);rearWindow.setAttribute('height',windowLength);
-  frontWindow.setAttribute('x',-interiorWidth/2);frontWindow.setAttribute('width',interiorWidth);
-  frontWindow.setAttribute('y',centerOffset+windowOffset-windowLength/2);frontWindow.setAttribute('height',windowLength);
-  // 車体前端の目印も前端位置に合わせる。
-  const frontMark=document.querySelector('#carBody > path');
-  frontMark.setAttribute('d',`M-12 ${g.front-18} L0 ${g.front-8} L12 ${g.front-18}`);
+  renderCarArt(g);   // 接触している部分だけを renderHits() が赤く描く
   const wheelFL=document.getElementById('wheelFL'), wheelFR=document.getElementById('wheelFR');
   wheelFL.setAttribute('x',-g.halfWidth-4);wheelFL.setAttribute('y',g.wheelbase-13.5);
   wheelFR.setAttribute('x',g.halfWidth-4);wheelFR.setAttribute('y',g.wheelbase-13.5);
@@ -559,6 +817,7 @@ function updateDisplay(){
   const handleGroup=document.getElementById('resizeHandles');
   handleGroup.appendChild(handle);
   parking.appendChild(handleGroup);
+  handleGroup.style.display=document.getElementById('showDims').checked?'':'none';   // サイズ変更の黄色い丸も、寸法と一緒に表示/非表示
   if(rulerG)parking.appendChild(rulerG);   // 定規は常に最前面
   wheelSpokes.setAttribute('transform',`rotate(${steering*params.lockToLock/2} 80 80)`);
   const wheelRotation=steering*params.lockToLock/2;
@@ -581,7 +840,94 @@ function updateDisplay(){
   const dirNow=playingPath?shownGear:movement;
   directionText.textContent=dirNow===1?'前進中':dirNow===-1?'バック中':'停止中';
   document.getElementById('gear').textContent=dirNow===1?'前進':dirNow===-1?'バック':'停止中';
+  renderHits();
 }
+
+// ---- 接触している部分を赤く表示する ----
+function clipConvex(subject,clip){   // 凸多角形どうしの交差（Sutherland–Hodgman）
+  const area=poly=>poly.reduce((t,p,i)=>{const q=poly[(i+1)%poly.length];return t+(p.x*q.y-q.x*p.y);},0);
+  if(area(clip)<0)clip=clip.slice().reverse();
+  let out=subject;
+  for(let i=0;i<clip.length&&out.length;i++){
+    const A=clip[i],B=clip[(i+1)%clip.length], inp=out; out=[];
+    const side=P=>(B.x-A.x)*(P.y-A.y)-(B.y-A.y)*(P.x-A.x);
+    const inter=(P,Q)=>{const sp=side(P),sq=side(Q),t=sp/(sp-sq);return {x:P.x+(Q.x-P.x)*t,y:P.y+(Q.y-P.y)*t};};
+    for(let j=0;j<inp.length;j++){
+      const P=inp[j],Q=inp[(j+1)%inp.length],ip=side(P)>=0,iq=side(Q)>=0;
+      if(ip){out.push(P);if(!iq)out.push(inter(P,Q));}else if(iq)out.push(inter(P,Q));
+    }
+  }
+  return out;
+}
+function obstaclePolys(){
+  const L=[];
+  for(const c of otherCars)L.push(parkedCarCorners(c.x,c.y,c.angle,c));
+  if(custMode)for(const o of custObs)L.push(parkedCarCorners(o.x,o.y,o.a,o));
+  if(uMode&&UG&&UG.MW>0)for(const [y1,y2] of [[0,UG.boxT],[UG.boxB,UG.H]]){if(y2-y1>0)L.push([{x:UG.xC,y:y1},{x:UG.xO,y:y1},{x:UG.xO,y:y2},{x:UG.xC,y:y2}]);}
+  return L;
+}
+function renderHits(){
+  const layer=document.getElementById('hitLayer');if(!layer)return;
+  const me=carCorners(rearX,rearY,angle);
+  let h='',n=0;
+  for(const poly of obstaclePolys()){
+    if(!rectanglesOverlap(me,poly))continue;
+    n++;
+    h+=`<polygon points="${poly.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ')}" fill="none" stroke="#e53935" stroke-width="4" stroke-dasharray="7 4"/>`;
+    const ip=clipConvex(me,poly);
+    if(ip.length>=3)h+=`<polygon points="${ip.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ')}" fill="#e00000" fill-opacity=".9" stroke="#7f0000" stroke-width="2"/>`;
+  }
+  if(h!==layer._h){layer.innerHTML=h;layer._h=h;}
+}
+document.getElementById('passThru').addEventListener('change',e=>{passThru=e.target.checked;warn(passThru?'ぶつかっても走り続けます。接触している部分は赤く表示されます。':'ぶつかる手前で止まります。','#17243a');});
+
+// ---- 車の見た目（上から見た形：ボンネット・フロントガラス・ルーフ・リアガラス・ミラー・ライト） ----
+// y0＝後端、y1＝前端（前が＋）、hw＝車幅の半分。当たり判定は従来どおり長方形のまま。
+const PAL_PLAYER={body:'#f08032',edge:'#8c4b0d',roof:'#f6a25e',glass:'#cfe5f1',glassEdge:'#5b7080'};
+const PAL_PARKED={body:'#4778c6',edge:'#19365f',roof:'#6a95d8',glass:'#bcd9ec',glassEdge:'#2d4a6b'};
+const CAR_SHAPES={
+  sedan:{hs:.61,gt:.24,gb:.59,rt:.335,rb:.49,sf:.80,nose:.55,my:.545,d:[.34,.50],rg:.20,rc:.88,rcy:.09,rails:false},
+  van:  {hs:.74,gt:.10,gb:.73,rt:.17,rb:.66,sf:.88,nose:.68,my:.70,d:[.26,.47],rg:.07,rc:.94,rcy:.05,rails:true},
+  kei:  {hs:.78,gt:.11,gb:.77,rt:.22,rb:.62,sf:.90,nose:.76,my:.735,d:[.30,.52],rg:.08,rc:.95,rcy:.05,rails:false}
+};
+function carArt(y0,y1,hw,P,kind){
+  const S=CAR_SHAPES[kind]||CAR_SHAPES.sedan;
+  const L=y1-y0, Y=f=>(y0+f*L).toFixed(1), X=f=>(f*hw).toFixed(1), H=hw.toFixed(1), nH=(-hw).toFixed(1), y0s=y0.toFixed(1), y1s=y1.toFixed(1);
+  const sf2=S.sf+(1-S.sf)*.65;
+  const body=`M${-X(S.rc)} ${y0s}L${X(S.rc)} ${y0s}Q${H} ${y0s} ${H} ${Y(S.rcy)}L${H} ${Y(S.sf)}C${H} ${Y(sf2)} ${X(.92)} ${y1s} ${X(S.nose)} ${y1s}L${-X(S.nose)} ${y1s}C${-X(.92)} ${y1s} ${nH} ${Y(sf2)} ${nH} ${Y(S.sf)}L${nH} ${Y(S.rcy)}Q${nH} ${y0s} ${-X(S.rc)} ${y0s}Z`;
+  const hy=k=>Y(S.hs+k*(.975-S.hs)/.365);
+  const hood=`M${-X(.80)} ${Y(S.hs)}Q0 ${Y(S.hs+.025)} ${X(.80)} ${Y(S.hs)}L${X(.93)} ${hy(.13)}L${X(.93)} ${hy(.23)}C${X(.9)} ${hy(.34)} ${X(.74)} ${hy(.365)} ${X(.5)} ${hy(.365)}L${-X(.5)} ${hy(.365)}C${-X(.74)} ${hy(.365)} ${-X(.9)} ${hy(.34)} ${-X(.93)} ${hy(.23)}L${-X(.93)} ${hy(.13)}Z`;
+  const gm=S.gt+(S.gb-S.gt)*.51;
+  const glass=`M${-X(.76)} ${Y(S.gt)}Q0 ${Y(S.gt-.035)} ${X(.76)} ${Y(S.gt)}L${X(.86)} ${Y(gm)}L${X(.74)} ${Y(S.gb)}Q0 ${Y(S.gb+.05)} ${-X(.74)} ${Y(S.gb)}L${-X(.86)} ${Y(gm)}Z`;
+  const roof=`M${-X(.62)} ${Y(S.rt)}Q0 ${Y(S.rt-.02)} ${X(.62)} ${Y(S.rt)}L${X(.66)} ${Y(S.rb)}Q0 ${Y(S.rb+.025)} ${-X(.66)} ${Y(S.rb)}Z`;
+  const mir=sg=>{const x1=sg*hw*0.93, x2=sg*hw*1.15;return `<path d="M${Math.min(x1,x2).toFixed(1)} ${Y(S.my)}h${Math.abs(x2-x1).toFixed(1)}v${(L*0.075).toFixed(1)}h${-Math.abs(x2-x1).toFixed(1)}z" fill="${P.body}" stroke="${P.edge}" stroke-width="1.5"/>`;};
+  const head=sg=>`<path d="M${(sg*hw*.56).toFixed(1)} ${Y(.978)}L${(sg*hw*.86).toFixed(1)} ${Y(.935)}L${(sg*hw*.9).toFixed(1)} ${Y(.958)}L${(sg*hw*.64).toFixed(1)} ${Y(.996)}Z" fill="#fff6c2" stroke="${P.edge}" stroke-width="1"/>`;
+  const tail=sg=>`<path d="M${(sg*hw*.6).toFixed(1)} ${Y(.012)}h${(sg*hw*.3).toFixed(1)}v${(L*0.035).toFixed(1)}h${(-sg*hw*.3).toFixed(1)}z" fill="#d32f2f" stroke="${P.edge}" stroke-width="1"/>`;
+  const d1=S.d[0],d2=S.d[1];
+  const doors=kind==='van'
+    ? `M${H} ${Y(d1)}h${(-hw*.16).toFixed(1)}M${H} ${Y(d2)}h${(-hw*.16).toFixed(1)}M${nH} ${Y(d1)}h${(hw*.16).toFixed(1)}M${nH} ${Y(d2)}h${(hw*.16).toFixed(1)}M${(hw*.97).toFixed(1)} ${Y(d1)}V${Y(d2)}M${(-hw*.97).toFixed(1)} ${Y(d1)}V${Y(d2)}`
+    : `M${H} ${Y(d1)}h${(-hw*.16).toFixed(1)}M${H} ${Y(d2)}h${(-hw*.16).toFixed(1)}M${nH} ${Y(d1)}h${(hw*.16).toFixed(1)}M${nH} ${Y(d2)}h${(hw*.16).toFixed(1)}`;
+  const rails=S.rails?`<path d="M${X(.5)} ${Y(S.rt+.05)}V${Y(S.rb-.04)}M${-X(.5)} ${Y(S.rt+.05)}V${Y(S.rb-.04)}" stroke="${P.glassEdge}" stroke-opacity=".7" stroke-width="1.6" fill="none"/>`:'';
+  return `<path d="${body}" fill="${P.body}" stroke="${P.edge}" stroke-width="2"/>`
+    +`<path d="${hood}" fill="#fff" fill-opacity=".14" stroke="${P.edge}" stroke-opacity=".55" stroke-width="1"/>`
+    +`<path d="M${-X(.74)} ${Y(S.rg)}Q0 ${Y(S.rg-.02)} ${X(.74)} ${Y(S.rg)}" fill="none" stroke="${P.edge}" stroke-opacity=".5" stroke-width="1"/>`
+    +`<path d="${glass}" fill="${P.glass}" stroke="${P.glassEdge}" stroke-width="1.2"/>`
+    +`<path d="${roof}" fill="${P.roof}" stroke="${P.glassEdge}" stroke-opacity=".6" stroke-width="1"/>`+rails
+    +`<path d="${doors}" stroke="${P.edge}" stroke-opacity=".55" stroke-width="1" fill="none"/>`
+    +mir(-1)+mir(1)+head(-1)+head(1)+tail(-1)+tail(1);
+}
+function currentCarKind(){
+  if(!vehReady)return 'sedan';
+  const k=vehSel.value;if(CAR_SHAPES[k])return k;
+  return params.length<3.9?'kei':(params.length>4.6?'van':'sedan');
+}
+let _artKey='';
+function renderCarArt(g){
+  const kind=currentCarKind(), key=[g.front,g.rear,g.halfWidth,kind].join(',');
+  if(key===_artKey)return;_artKey=key;
+  document.getElementById('carArt').innerHTML=carArt(-g.rear,g.front,g.halfWidth,PAL_PLAYER,kind);
+}
+document.getElementById('parkedArt').innerHTML=carArt(-90,90,36,PAL_PARKED,'sedan');
 function nearestDistance(px,py){
   let d=Infinity;
   for(const c of otherCars) d=Math.min(d,Math.hypot(px-c.x,py-c.y));
@@ -601,9 +947,12 @@ function step(dt){
   const centerX=nx+Math.sin(na)*g.wheelbase/2, centerY=ny+Math.cos(na)*g.wheelbase/2;
   const near=nearestDistance(centerX,centerY);
   const collision=collisionAt(nx,ny,na);
-  if(collision){
+  if(collision==='car'&&passThru){
+    rearX=nx;rearY=ny;angle=na;
+    warn('⚠ ぶつかっています（接触している部分を赤く表示しています）。バックなどで離れてください。','#c62828');
+  }else if(collision){
     movement=0;
-    warn(collision==='car'?'⚠ 車体が周囲の車と接触する位置に達したため停止しました。':((isPara()||isU())?'⚠ 縁石・中央分離帯などに達するため停止しました。':'⚠ 車体が駐車場の表示範囲を越えるため停止しました。'),'#c62828');
+    warn(collision==='car'?'⚠ 車体が周囲の車や壁などと接触する位置に達したため停止しました。':((isPara()||isU())?'⚠ 縁石・中央分離帯などに達するため停止しました。':'⚠ 車体が駐車場の表示範囲を越えるため停止しました。'),'#c62828');
   }else{
     rearX=nx;rearY=ny;angle=na;
     if(near<145) warn('注意：周囲の車に接近しています（距離表示は概算）。','#b26a00');
@@ -617,11 +966,12 @@ function animate(timestamp){
   if(simDirty){resim();document.querySelectorAll('tr[data-i]').forEach(hintFor);}
   stepReplay();
   step(dt);
+  recordTrail();
   updateDisplay();
   refreshMode2();
   requestAnimationFrame(animate);
 }
-function setMovement(value){ if(value){stopReplay();stepView=false;} playingPath=false; movement=value; }
+function setMovement(value){ if(value){if(!movement)pushHist();stopReplay();stepView=false;} playingPath=false; movement=value; }
 document.getElementById('forward').addEventListener('pointerdown',e=>{e.preventDefault();setMovement(1)});
 document.getElementById('reverse').addEventListener('pointerdown',e=>{e.preventDefault();setMovement(-1)});
 for(const id of ['forward','reverse']){
@@ -633,61 +983,131 @@ for(const id of ['forward','reverse']){
 }
 document.getElementById('stop').addEventListener('click',()=>{stopReplay();movement=0;playingPath=false});
 document.getElementById('reset').addEventListener('click',()=>{
+  if(isCust()){
+    const dirty=custObs.length||custImg||custW!==24||custH!==14;
+    if(dirty&&!confirm('自由配置を新規の状態に戻します。置いた車・壁・建物、背景画像がすべて消えます。よろしいですか？'))return;
+    custNew();
+  }
   // 操作対象車のサイズ（幅・全長・ホイールベース・オーバーハング）を初期値へ戻す。
   // 先にサイズを戻してから後輪軸を計算する（後輪軸の位置はホイールベースに依存するため）。
-  Object.assign(params,DEFAULT_VEHICLE);
+  Object.assign(params,DEFAULT_VEHICLE);forceCustom=false;
   resetPose();
   updateVehicleSummary();
-  warn('位置とサイズをリセットしました。周囲を確認してください。','#26733b');updateDisplay();
+  if(isCust()){applyRoad();renderCust();}
+  warn(isCust()?'自由配置を新規の状態に戻しました。「＋」で車や壁を置いてください。':'位置とサイズをリセットしました。周囲を確認してください。','#26733b');updateDisplay();
 });
 function resetPose(){
+  hist.length=0;clearTrail();
   angle=start.angle;const r=rearAxleForBodyCenter(start.x,start.y,start.angle);rearX=r.x;rearY=r.y;movement=0;steering=0;playingPath=false;scrubPos=0;stepView=false;
   clearRec();invalidatePlan();
 }
 // 駐車の向きを切り替える。サイズは保ったまま、駐車枠の中央・新しい向きに置き直す。
 const parkStyle=document.getElementById('parkStyle');
+const HOWTO_ADV='操作：「▲前進」「▼バック」を押している間、車が動きます。右の「1. ハンドル操作による走行」でハンドルをドラッグして切ってください（スマホは画面下のハンドル）。「2. 手順入力による走行」では、数値で手順を入れて走らせることもできます。';
+const SCENE_HELP={
+  front:['前向きに駐車した状態から、バックで出庫します。隣の車に当たらない切り方を探せます。','駐車した位置'],
+  back:['後ろ向きに駐車した状態から、前進で出庫します。隣の車に当たらない切り方を探せます。','駐車した位置'],
+  enter:['車路を走ってきた状態から、中央の空き枠に入れます。前進で切り込む方法と、通り過ぎてからバックで入れる方法の両方を試せます。','車路を走ってきた位置'],
+  paraIn:['前の車の真横に止まった状態から、バックで前後の車の間に入れます。「空きスペースの長さ」を縮めて、入れる限界を探せます。','前の車の真横に止まった位置'],
+  paraOut:['前後の車の間から車路へ出ます。「空きスペースの長さ」を縮めて、出られなくなる限界を探せます。','前後の車の間に止まった位置'],
+  angUpFront:['サービスエリアのような斜めの枠（車路の上側＝進行方向に向かって左側）に、前向きに駐車した状態から、バックで出庫します。車路は一方通行（右向き）です。','上側の斜めの枠に前向きで駐車した位置'],
+  angUpBack:['車路の上側（進行方向に向かって左側）の斜めの枠に、後ろ向きに駐車した状態から、前進で出庫します。車路は一方通行（右向き）です。','上側の斜めの枠に後ろ向きで駐車した位置'],
+  angDownFront:['車路の下側（進行方向に向かって右側）の斜めの枠に、前向きに駐車した状態から、バックで出庫します。枠は進行方向と逆向きに傾いているので、上側より出にくくなります。車路の幅を変えて、出られる限界も探せます。','下側の斜めの枠に前向きで駐車した位置'],
+  angDownBack:['車路の下側（進行方向に向かって右側）の斜めの枠に、後ろ向きに駐車した状態から、前進で出庫します。','下側の斜めの枠に後ろ向きで駐車した位置'],
+  angIn:['車路を右向きに走ってきた状態から、上側・下側どちらかの空き斜め枠に入れます。前進で入れる方法と、バックで入れる方法を試せます。','車路を走ってきた位置'],
+  custom:['自分で道路状況をつくって走らせます。「＋停車中の車」「＋壁・塀」などで周りを置き、操作対象車（オレンジ）をドラッグして出発位置を決めてください。空いたスペースで、ハンドル操作や手順入力による走行を確かめられます。','操作対象車を置いた位置'],
+  uturn:['交差点の右折レーンの先頭から、対向車線へUターンします。対向車線の数・車線の幅・中央分離帯を変えて、一度で回りきれるかを試せます。','右折レーンの先頭']
+};
+const HOWTO_SIMPLE='操作：ハンドルをドラッグして切り、「▲前進」「▼バック」を押している間だけ車が動きます。';
+function howto(){return document.documentElement.classList.contains('simple')?HOWTO_SIMPLE:HOWTO_ADV}
+function updateSceneHelp(){
+  const h=SCENE_HELP[parkStyle.value]||SCENE_HELP.front;
+  document.getElementById('modeNote').innerHTML='<b>この場面：</b>'+h[0]+'<br>'+howto();
+  document.getElementById('startDesc').textContent='出発位置（'+h[1]+'）';
+}
 let savedPerp=null, lastKind='perp';
+const TOP_LINES_PERP=document.getElementById('topLines').getAttribute('d');
+function buildAng(){   // 場面に合わせて周囲の車を並べ直す
+  const st=parkStyle.value, d=otherCars[0]||{width:1.8,length:4.5};
+  const up=st==='angUpFront'||st==='angUpBack', down=st==='angDownFront'||st==='angDownBack';
+  angRows={T:down?[0,1,2,3,4]:[0,1,3,4],B:up?[0,1,2,3,4]:[0,1,3,4]};
+  otherCars.length=0;
+  for(const r of ['T','B'])for(const si of angRows[r])otherCars.push({x:0,y:0,angle:0,width:d.width,length:d.length,row:r,si});
+  selectedCar='player';placeAng();
+}
+function placeAng(){   // 位置・向き・白線（車路の幅が変わるたびに呼ぶ）
+  if(!angRows)return;
+  const G=angGeom(), a=Math.PI/2+G.th, h=roadH;
+  for(const c of otherCars){
+    c.angle=a;c.x=G.cx(c.si);c.y=c.row==='T'?G.cy:G.cyBot(h);
+  }
+  let t='',b='';
+  for(let i=0;i<=5;i++){
+    const x=G.x0+(i-0.5)*G.sp;
+    t+=`M${x.toFixed(1)} ${ROAD_TOP}l${(190*G.cs).toFixed(1)} ${(-190*G.sn).toFixed(1)} `;
+    b+=`M${(x+2*G.dx).toFixed(1)} ${ROAD_TOP+h}l${(-190*G.cs).toFixed(1)} ${(190*G.sn).toFixed(1)} `;
+  }
+  document.getElementById('topLines').setAttribute('d',t);
+  document.getElementById('bottomLines').setAttribute('d',b);
+}
 function layoutPara(){   // 縦列駐車の前後の車を置く（空きスペース長に合わせる）
   const [xl,xr]=paraNeighbours();
   [xl,xr].forEach((y,i)=>{const c=otherCars[i];c.x=PARA_X;c.y=y;c.angle=Math.PI;});
 }
 function applyScene(){
-  const st=parkStyle.value, para=st==='paraIn'||st==='paraOut', uu=st==='uturn';
-  const kind=uu?'u':para?'para':'perp';
-  paraMode=para;uMode=uu;
+  const st=parkStyle.value, para=st==='paraIn'||st==='paraOut', uu=st==='uturn', ang=ANG_SCENES.includes(st), cu=st==='custom';
+  const kind=cu?'cust':uu?'u':para?'para':ang?'ang':'perp';
+  paraMode=para;uMode=uu;angMode=ang;custMode=cu;
+  if(cu)loadCust();
   if(uu)UG=uGeom();
   if(kind!==lastKind){
     if(lastKind==='perp')savedPerp=otherCars.map(c=>({...c}));
     const w=savedPerp[0].width,l=savedPerp[0].length;
     otherCars.length=0;
-    if(kind==='perp'){otherCars.push(...savedPerp);VIEW_W=560;ROAD_MIN=120;ROAD_MAX=320;roadH=200;}
+    if(kind==='perp'){otherCars.push(...savedPerp);VIEW_W=perpW();ROAD_MIN=120;ROAD_MAX=320;roadH=200;}
     else if(kind==='para'){otherCars.push({x:0,y:0,angle:0,width:w,length:l},{x:0,y:0,angle:0,width:w,length:l});ROAD_MIN=160;ROAD_MAX=320;roadH=240;VIEW_W=2*PARA_SW+roadH;}
+    else if(kind==='ang'){otherCars.push({x:0,y:0,angle:0,width:w,length:l});ROAD_MIN=120;ROAD_MAX=320;roadH=200;}
+    else if(kind==='cust'){ROAD_MIN=120;ROAD_MAX=320;VIEW_W=custW*SCALE;}
     else{VIEW_W=UG.W;}
     lastKind=kind;selectedCar='player';
-    for(const id of ['topLines','bottomLines'])document.getElementById(id).style.display=kind==='perp'?'':'none';
-    for(const id of ['topRow','bottomRow'])document.getElementById(id).setAttribute('fill',kind==='para'?'#c9c4b6':'#bcbcbc');
+    document.getElementById('topLines').style.display=(kind==='perp'||kind==='ang')?'':'none';
+    {const e=document.getElementById('custBox');e.hidden=kind!=='cust';e.style.display=kind==='cust'?'flex':'none';}
+    document.getElementById('bottomLines').style.display=(kind==='perp'||kind==='ang')?'':'none';
+    document.getElementById('topLines').setAttribute('d',TOP_LINES_PERP);
+    document.getElementById('topRow').setAttribute('fill',kind==='para'?'#c9c4b6':'#bcbcbc');
+    document.getElementById('bottomRow').setAttribute('fill',kind==='para'?'#c9c4b6':'#bcbcbc');
     document.getElementById('kerbLine').setAttribute('display',kind==='para'?'':'none');
   }
   if(para)layoutPara();
+  if(ang){VIEW_W=angGeom().VW;buildAng();}
   const show=(id,on)=>{const e=document.getElementById(id);e.hidden=!on;e.style.display=on?'flex':'none';};
-  show('gapBox',para);show('uBox',uu);
+  show('gapBox',para);show('uBox',uu);show('angBox',ang);show('sideBox',kind==='perp'||ang);
+  {const e=document.getElementById('slotWidthText');if(e)e.textContent=(SLOT()/SCALE_U).toFixed(1);}
   document.getElementById('uInfoBox').style.display=uu?'':'none';
   Object.assign(start,startPoseFor(st));
   const sl=document.getElementById('slotLabel');
-  sl.textContent=st==='enter'?'入庫先（空き枠）':st==='paraIn'?'入庫先':'操作対象車';
-  sl.setAttribute('y',para?PARA_H/2:207);sl.setAttribute('x',para?PARA_SW/2:280);
-  sl.style.display=uu?'none':'';
-  resetPose();applyRoad();
+  sl.textContent=(st==='enter'||st==='angIn')?'入庫先（空き枠）':st==='paraIn'?'入庫先':'操作対象車';
+  sl.setAttribute('y',para?PARA_H/2:ang?ROAD_TOP+14:207);sl.setAttribute('x',para?PARA_SW/2:ang?angGeom().P(2).x+30:perpCx());
+  sl.style.display=(uu||ang||cu)?'none':'';
+  resetPose();applyRoad();updateSceneHelp();
 }
+function syncResetLabel(){const b=document.getElementById('reset');if(b)b.textContent=(typeof isCust==='function'&&isCust())?'新規配置（すべてリセット）':'位置・サイズをリセット';}
 parkStyle.addEventListener('change',()=>{
-  applyScene();
-  warn({front:'前向き駐車の状態にしました。バックで出庫します。',back:'後ろ向き駐車の状態にしました。前進で出庫します。',enter:'入庫の場面です。車路から、中央の空き枠に入れてください（前進で入る・前進してからバックで入れる、どちらも試せます）。',paraIn:'縦列駐車の入庫です。前の車の真横から、バックで前後の車の間に入れてください。',paraOut:'縦列駐車の出庫です。前後の車の間から、車路へ出てください。',uturn:'Uターンの場面です。交差点の右折レーンの先頭（停止線の手前）から、対向車線へ回り込んでください。'}[parkStyle.value],'#26733b');
+  applyScene();syncResetLabel();
+  const hadSteps=steps.length>0;   // 場面を変えたら、手順入力の内容も消す（前の場面の手順は合わないため）
+  steps=[];stopReplay();resim();renderSteps();
+  warn({front:'前向き駐車の状態にしました。バックで出庫します。',back:'後ろ向き駐車の状態にしました。前進で出庫します。',enter:'入庫の場面です。車路から、中央の空き枠に入れてください（前進で入る・前進してからバックで入れる、どちらも試せます）。',paraIn:'縦列駐車の入庫です。前の車の真横から、バックで前後の車の間に入れてください。',paraOut:'縦列駐車の出庫です。前後の車の間から、車路へ出てください。',angUpFront:'上側の斜めの枠に前向きで駐車した状態です。バックで出庫し、車路を右（進行方向）へ向かってください。',angUpBack:'上側の斜めの枠に後ろ向きで駐車した状態です。前進で出庫し、車路を右（進行方向）へ向かってください。',angDownFront:'下側の斜めの枠に前向きで駐車した状態です。バックで出庫し、車路を右（進行方向）へ向かってください。',angDownBack:'下側の斜めの枠に後ろ向きで駐車した状態です。前進で出庫し、車路を右（進行方向）へ向かってください。',custom:'自由配置です。置いたものに当たらないよう、操作対象車を走らせてみてください。',angIn:'斜めの枠への入庫です。車路を右向きに走ってきた状態から、上側・下側どちらかの空き枠に入れてください。',uturn:'Uターンの場面です。交差点の右折レーンの先頭（停止線の手前）から、対向車線へ回り込んでください。'}[parkStyle.value],'#26733b');
+  if(hadSteps)warn(warning.textContent+'（手順入力の内容は消去しました。）',warning.style.color);
   updateDisplay();
 });
 for(const [id,fn] of [['uOpp',v=>{uOpp=parseInt(v)||2;}],['uLane',v=>{uLane=Math.max(2.75,Math.min(3.75,parseFloat(v)||3.25));}],['uMedian',v=>{uMedian=Math.max(0,Math.min(4,parseFloat(v)||0));}]]){
   document.getElementById(id).addEventListener('change',e=>{fn(e.target.value);if(id==='uLane')e.target.value=uLane.toFixed(2);if(id==='uMedian')e.target.value=uMedian;
     if(isU()){UG=uGeom();VIEW_W=UG.W;Object.assign(start,startPoseFor('uturn'));resetPose();applyRoad();updateDisplay();}});
 }
+document.getElementById('angDeg').addEventListener('change',e=>{
+  angDeg=Math.max(40,Math.min(60,parseFloat(e.target.value)||45));e.target.value=angDeg;
+  if(isAng()){VIEW_W=angGeom().VW;buildAng();Object.assign(start,startPoseFor(parkStyle.value));resetPose();applyRoad();updateDisplay();updateSceneHelp();}
+});
 document.getElementById('gapLen').addEventListener('change',e=>{
   gapLen=Math.max(4.8,Math.min(10,parseFloat(e.target.value)||6));e.target.value=gapLen.toFixed(1);
   if(isPara()){layoutPara();Object.assign(start,startPoseFor(parkStyle.value));resetPose();updateDisplay();}
@@ -736,7 +1156,7 @@ let sim={start:null,samples:[]};   // steps を走らせた結果
 let stepView=false;   // true の間は、車の位置を「手順の再現・位置スライダー」が決める（手動で動かすと false に戻る）
 let scrubPos=0, replay=null, chartDirty=true, chartCursor=-1;
 const originPose=()=>{const r=rearAxleForBodyCenter(start.x,start.y,start.angle);return {x:r.x,y:r.y,a:start.angle};};
-const exitGear=()=>({front:-1,back:1,enter:1,paraIn:-1,paraOut:-1,uturn:1})[parkStyle.value];   // 出庫は前向き駐車ならバック／入庫は入り方の向き
+const exitGear=()=>({front:-1,back:1,enter:1,paraIn:-1,paraOut:-1,uturn:1,angUpFront:-1,angUpBack:1,angDownFront:-1,angDownBack:1,angIn:1})[parkStyle.value];   // 出庫は前向き駐車ならバック／入庫は入り方の向き
 const steerOf=w=>clamp(w/(params.lockToLock/2),-1,1)*params.maxSteeringAngle*Math.PI/180;
 const wheelDeg=steer=>steer/(params.maxSteeringAngle*Math.PI/180)*(params.lockToLock/2);
 function setPose(p){   // p=0: 出発位置、p=k: k 番目のサンプル
@@ -786,7 +1206,7 @@ function clearRec(){stopReplay();}   // 他の処理（リセット・寸法変�
 // ---- 再現 ----
 function startReplay(){
   if(!sim.samples.length){warn('再現できる手順がありません。手順を追加するか、自動で探してください。','#b26a00');return;}
-  stopReplay();playingPath=true;setPose(0);replay={i:0};
+  stopReplay();playingPath=true;clearTrail();setPose(0);replay={i:0};
   warn('手順を最初から再現しています…','#17243a');
 }
 function stepReplay(){
@@ -882,28 +1302,47 @@ function renderSummary(){
     const outOfSlot=maxY<=Fy||minX>=PARA_X+otherCars[0].width*SCALE/2+4;   // 前の車より前に出た、または車の列の外側に出た
     lines.push(`<div style="padding:6px 8px;background:${outOfSlot?'#f0f7ef':'#f4f6f9'};border-radius:6px">${outOfSlot?'🚗 前後の車の列から出ています':'🚗 まだ前後の車の列の中にいます'}（縁石まで 約${((minX-PARA_KX)/SCALE*100).toFixed(0)}cm／道路との角度差 約${par.toFixed(0)}°）</div>`);
   }
+  if(isAng()&&S.length&&!sim.out){
+    const l=S[S.length-1], cc=carCorners(l.x,l.y,l.a), G=angGeom(), bottom=ROAD_TOP+roadH;
+    const minY=Math.min(...cc.map(q=>q.y)), maxY=Math.max(...cc.map(q=>q.y));
+    const n={x:G.sn,y:G.cs};
+    if(parkStyle.value==='angIn'){
+      const inTop=l.y<ROAD_TOP+roadH/2, P=inTop?G.P(2):G.PB(2,roadH);
+      const lat=cc.map(q=>(q.x-P.x)*n.x+(q.y-P.y)*n.y), half=SLOT()/2;
+      const sideL=(half+Math.min(...lat))/SCALE*100, sideR=(half-Math.max(...lat))/SCALE*100;
+      const outY=(inTop?(maxY-ROAD_TOP):(bottom-minY))/SCALE*100;
+      const d=Math.abs(wrapA(l.a-(Math.PI/2+G.th)))*180/Math.PI, dd=Math.min(d,180-d), rowName=inTop?'上側':'下側';
+      const inside=sideL>=0&&sideR>=0&&outY<=30;
+      lines.push(inside?`<div style="padding:6px 8px;background:#f0f7ef;border-radius:6px">🅿 ${rowName}の斜めの枠に収まっています（枠の線までの余裕 左 約${sideL.toFixed(0)}cm／右 約${sideR.toFixed(0)}cm、枠の向きとの差 約${dd.toFixed(0)}°）</div>`
+        :`<div style="padding:6px 8px;background:#fff8e1;border-radius:6px;color:#8a5a00;font-weight:700">🅿 まだ枠に収まっていません（最後の位置は${rowName}の枠の付近：${sideL<0?`枠の線を越えて約${(-sideL).toFixed(0)}cm `:''}${sideR<0?`枠の線を越えて約${(-sideR).toFixed(0)}cm `:''}${outY>30?`車路側へ約${(outY-30).toFixed(0)}cm `:''}はみ出し／枠の向きとの差 約${dd.toFixed(0)}°）</div>`);
+    }else{
+      const outAll=minY>=ROAD_TOP-4&&maxY<=bottom+4, dh=Math.abs(wrapA(l.a-Math.PI/2))*180/Math.PI;
+      lines.push(outAll?`<div style="padding:6px 8px;background:#f0f7ef;border-radius:6px">🚗 車路に出ています（進行方向〈右〉との向きの差 約${dh.toFixed(0)}°${dh<=30?'：そのまま走り出せます':dh<=90?'：まだ向きを整える必要があります':'：進行方向と逆を向いています'}）</div>`
+        :`<div style="padding:6px 8px;background:#f4f6f9;border-radius:6px">🚗 まだ車の一部が斜めの枠の中にあります（進行方向〈右〉との向きの差 約${dh.toFixed(0)}°）</div>`);
+    }
+  }
   if(isEnter()&&S.length&&!sim.out){
-    const l=S[S.length-1], cc=carCorners(l.x,l.y,l.a), L=230, R=330;
+    const l=S[S.length-1], cc=carCorners(l.x,l.y,l.a), L=perpCx()-SLOT()/2, R=perpCx()+SLOT()/2;
     const minX=Math.min(...cc.map(q=>q.x)), maxX=Math.max(...cc.map(q=>q.x)), maxY=Math.max(...cc.map(q=>q.y));
     const sideL=(minX-L)/SCALE*100, sideR=(R-maxX)/SCALE*100, outY=(maxY-ROAD_TOP)/SCALE*100;
     const inside=sideL>=0&&sideR>=0&&outY<=0;
     lines.push(inside?`<div style="padding:6px 8px;background:#f0f7ef;border-radius:6px">🅿 枠内に収まっています（左右の余裕 左 約${sideL.toFixed(0)}cm／右 約${sideR.toFixed(0)}cm、車路側へのはみ出しなし）</div>`
       :`<div style="padding:6px 8px;background:#fff8e1;border-radius:6px;color:#8a5a00;font-weight:700">🅿 枠に収まっていません（${sideL<0?`左へ約${(-sideL).toFixed(0)}cm `:''}${sideR<0?`右へ約${(-sideR).toFixed(0)}cm `:''}${outY>0?`車路側へ約${outY.toFixed(0)}cm `:''}はみ出し）</div>`);
   }
-  box.innerHTML=lines.join('')+`<div class="small" style="margin-top:6px">合計 ${len.toFixed(1)} m／前進・バックの切り替え ${sw} 回／最後の車の向きは車路との差 約${par.toFixed(0)}°</div>`;
+  box.innerHTML=lines.join('')+`<div class="small" style="margin-top:6px">合計 ${len.toFixed(1)} m／前進・バックの切り替え ${sw} 回${isAng()?'':`／最後の車の向きは車路との差 約${par.toFixed(0)}°`}</div>`;
 }
 function renderSteps(){
   const box=document.getElementById('stepList');
-  if(!steps.length){box.innerHTML='<div class="small" style="margin:6px 0">手順がありません。「自動で探す」「地図をクリック」「＋ 手順を追加」のどれかで作れます。</div>';renderSummary();return;}
+  if(!steps.length){box.innerHTML='<div class="small" style="margin:6px 0">手順がありません。「＋ 手順を追加」で、前進／バック・距離・ハンドル角を入れてください。</div>';renderSummary();return;}
   const half=params.lockToLock/2;
   const rows=steps.map((s,i)=>{
     return `<tr data-i="${i}"><td>${i+1}</td>`+
       `<td><select data-k="g"><option value="1"${s.g>0?' selected':''}>前進</option><option value="-1"${s.g<0?' selected':''}>バック</option></select></td>`+
       `<td><input type="number" data-k="len" min="0" max="20" step="0.1" value="${(+s.len.toFixed(2))}"> m</td>`+
-      `<td><input type="number" data-k="wheel" min="${-half}" max="${half}" step="5" value="${Math.round(s.wheel)}"> °<div class="small" data-hint></div></td>`+
+      `<td><input type="number" data-k="wheel" min="${-half}" max="${half}" step="5" value="${Math.round(s.wheel)}"> °<div class="wpre"><button type="button" data-w="${-half}">左全開</button><button type="button" data-w="0">直進</button><button type="button" data-w="${half}">右全開</button></div><div class="small" data-hint></div></td>`+
       `<td><button type="button" data-del title="この区間を削除">✕</button></td></tr>`;
   });
-  box.innerHTML=`<table class="seg-table"><thead><tr><th>#</th><th>動き</th><th>距離</th><th>ハンドル（右が＋／左が−）</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  box.innerHTML=`<table class="seg-table"><thead><tr><th>#</th><th>動き</th><th>距離</th><th>ハンドル角（右が＋／左が−、±${half}°が全開）</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
   box.querySelectorAll('tr[data-i]').forEach(tr=>hintFor(tr));
   renderSummary();
 }
@@ -921,6 +1360,8 @@ document.getElementById('stepList').addEventListener('input',e=>{
   stopReplay();hintFor(tr);resim();renderSummary();
 });
 document.getElementById('stepList').addEventListener('click',e=>{
+  const wb=e.target.closest('[data-w]');
+  if(wb){const tr=wb.closest('tr[data-i]'),inp=tr.querySelector('input[data-k=wheel]');inp.value=wb.dataset.w;inp.dispatchEvent(new Event('input',{bubbles:true}));return;}
   if(!e.target.closest('[data-del]'))return;
   const tr=e.target.closest('tr[data-i]');steps.splice(+tr.dataset.i,1);stopReplay();resim();renderSteps();
 });
@@ -930,7 +1371,7 @@ document.getElementById('addStep').addEventListener('click',()=>{
 });
 document.getElementById('clearSteps').addEventListener('click',()=>{steps=[];stopReplay();resim();renderSteps();});
 document.getElementById('replayBtn').addEventListener('click',startReplay);
-document.getElementById('scrub').addEventListener('input',e=>{stopReplay();setPose(+e.target.value);});
+document.getElementById('scrub').addEventListener('input',e=>{stopReplay();clearTrail();setPose(+e.target.value);});
 function loadSteps(list,note){
   steps=list.map(s=>({g:s.g,len:s.len,wheel:s.wheel}));stopReplay();scrubPos=0;resim();setPose(0);renderSteps();
   if(note)warn(note,'#17243a');
@@ -957,6 +1398,208 @@ const resizeHandle=document.getElementById('resizeHandle');
 let activeResizePointer=null;
 function svgPoint(e){const r=parking.getBoundingClientRect();return {x:(e.clientX-r.left)*VIEW_W/r.width,y:(e.clientY-r.top)*svgHeight()/r.height};}
 // 操作対象車をつまんで動かす（向きは変えず、位置だけ移動）。他の車や範囲外に重なる位置へは動かせない。
+
+// ================= 自由配置モード =================
+// custObs の要素：{id,type:'car'|'wall'|'building'|'pole', x,y(SVG単位=中心), a(向き。車と同じ規約), width,length(m)}
+const CUST_DEF={car:{w:1.8,l:4.5,name:'停車中の車'},wall:{w:0.3,l:4,name:'壁・塀'},building:{w:5,l:6,name:'建物'},pole:{w:0.3,l:0.3,name:'ポール・柱'}};
+const CUST_KEY='parkSimCustV1';
+function custDefaultLayout(){   // 初回は何も置かない（空の広場）。車は左側の中央から出発
+  custObs=[];
+  custStart={x:3*SCALE,y:custH*SCALE/2,angle:Math.PI/2};
+}
+// 新規配置：置いたもの・背景画像・マップの広さ・出発位置をすべて初期状態に戻す
+function custNew(){
+  custObs=[];custSel=-1;custImg=null;
+  const f=document.getElementById('custImgFile');if(f)f.value='';
+  custW=24;custH=14;VIEW_W=custW*SCALE;
+  custStart={x:3*SCALE,y:custH*SCALE/2,angle:Math.PI/2};Object.assign(start,custStart);
+  custSave();
+}
+function custSave(){try{localStorage.setItem(CUST_KEY,JSON.stringify({v:1,mapW:custW,mapH:custH,obs:custObs,start:custStart}));}catch(_){}}
+function loadCust(){
+  if(custObs.length||custStart)return;   // すでに読み込み済み
+  try{const j=JSON.parse(localStorage.getItem(CUST_KEY)||'null');if(j&&Array.isArray(j.obs)){applyCustData(j,false);return;}}catch(_){}
+  custDefaultLayout();
+}
+function clampNum(v,lo,hi,d){v=parseFloat(v);return isFinite(v)?Math.max(lo,Math.min(hi,v)):d;}
+function applyCustData(j,withImg){
+  custW=clampNum(j.mapW,10,60,24);custH=clampNum(j.mapH,8,40,14);
+  custObs=(j.obs||[]).slice(0,80).filter(o=>o&&CUST_DEF[o.type]).map(o=>({type:o.type,x:clampNum(o.x,0,custW*SCALE,0),y:clampNum(o.y,0,custH*SCALE,0),a:clampNum(o.a,-20,20,0),width:clampNum(o.width,0.2,40,CUST_DEF[o.type].w),length:clampNum(o.length,0.2,40,CUST_DEF[o.type].l)}));
+  const st=j.start||{};custStart={x:clampNum(st.x,0,custW*SCALE,3*SCALE),y:clampNum(st.y,0,custH*SCALE,custH*SCALE/2),angle:clampNum(st.angle,-20,20,Math.PI/2)};
+  if(withImg&&j.img&&typeof j.img.url==='string'&&j.img.url.startsWith('data:image/'))setCustImage(j.img.url,j.img);
+  custSel=-1;
+}
+function custPanelSync(){
+  const o=custObs[custSel], ids=['cW','cL','cA','cX','cY'];
+  document.getElementById('custMapW').value=custW;document.getElementById('custMapH').value=custH;
+  document.getElementById('custSel').textContent=o?CUST_DEF[o.type].name+'（'+(custSel+1)+'番目）':'（なし。置いたものをクリックすると選べます）';
+  for(const id of ids){const e=document.getElementById(id);e.disabled=!o;if(!o)e.value='';}
+  if(o){const f=(v)=>+v.toFixed(2);
+    document.getElementById('cW').value=f(o.width);document.getElementById('cL').value=f(o.length);
+    document.getElementById('cA').value=Math.round(-wrapA(o.a)*180/Math.PI);   // 画面上で右回りが＋
+    document.getElementById('cX').value=f(o.x/SCALE);document.getElementById('cY').value=f(o.y/SCALE);}
+  document.getElementById('custDel').disabled=!o;document.getElementById('custDup').disabled=!o;
+}
+function renderCust(){
+  const L=document.getElementById('custLayer'), Hd=document.getElementById('custHandles');
+  const W=custW*SCALE, H=custH*SCALE; let h='';
+  if(custGrid){
+    h+='<g pointer-events="none" stroke="#fff" opacity=".28">';
+    for(let x=1;x<custW;x++)h+=`<line x1="${x*SCALE}" y1="0" x2="${x*SCALE}" y2="${H}" stroke-width="${x%5===0?1.6:0.6}"/>`;
+    for(let y=1;y<custH;y++)h+=`<line x1="0" y1="${y*SCALE}" x2="${W}" y2="${y*SCALE}" stroke-width="${y%5===0?1.6:0.6}"/>`;
+    h+='</g><g pointer-events="none" fill="#fff" opacity=".7" font-size="11">';
+    for(let x=5;x<custW;x+=5)h+=`<text x="${x*SCALE+3}" y="12">${x}m</text>`;
+    for(let y=5;y<custH;y+=5)h+=`<text x="3" y="${y*SCALE-3}">${y}m</text>`;
+    h+='</g>';
+  }
+  custObs.forEach((o,i)=>{
+    const w=o.width*SCALE, l=o.length*SCALE, tf=`translate(${o.x.toFixed(1)} ${o.y.toFixed(1)}) rotate(${(-o.a*180/Math.PI).toFixed(2)})`;
+    let body='';
+    if(o.type==='car')body=`<use href="#parkedCar" transform="scale(${(w/72).toFixed(3)} ${(l/180).toFixed(3)})"/>`;
+    else if(o.type==='wall')body=`<rect x="${-w/2}" y="${-l/2}" width="${w}" height="${l}" fill="#6d5f55" stroke="#3b322c" stroke-width="2"/>`;
+    else if(o.type==='building')body=`<rect x="${-w/2}" y="${-l/2}" width="${w}" height="${l}" fill="#d8cfc0" stroke="#7a6f5e" stroke-width="3"/><path d="M${-w/2} ${-l/2}L${w/2} ${l/2}M${w/2} ${-l/2}L${-w/2} ${l/2}" stroke="#b5ab99" stroke-width="2"/>`;
+    else body=`<rect x="${-w/2}" y="${-l/2}" width="${w}" height="${l}" fill="#e7b416" stroke="#7a5a00" stroke-width="2"/>`;
+    h+=`<g data-oi="${i}" transform="${tf}" style="cursor:move;touch-action:none">${body}<rect x="${-w/2-6}" y="${-l/2-6}" width="${w+12}" height="${l+12}" fill="transparent"/>${i===custSel?`<rect x="${-w/2-3}" y="${-l/2-3}" width="${w+6}" height="${l+6}" fill="none" stroke="#ffd400" stroke-width="3" stroke-dasharray="8 5" pointer-events="none"/>`:''}</g>`;
+  });
+  L.innerHTML=h;
+  // 選択中のものの操作用ハンドル
+  let hh='';
+  const o=custObs[custSel];
+  if(o){
+    const a=o.a, w=o.width*SCALE/2, l=o.length*SCALE/2;
+    const P=(lx,ly)=>({x:o.x+Math.cos(a)*lx+Math.sin(a)*ly,y:o.y-Math.sin(a)*lx+Math.cos(a)*ly});
+    const sz=P(w,l), rb=P(0,-l), rt=P(0,-l-26);
+    hh+=`<line x1="${rb.x}" y1="${rb.y}" x2="${rt.x}" y2="${rt.y}" stroke="#00838f" stroke-width="2"/>`;
+    hh+=`<circle data-h="rot" cx="${rt.x}" cy="${rt.y}" r="10" class="rot-handle" style="touch-action:none;cursor:grab"><title>ドラッグで向きを変える</title></circle>`;
+    hh+=`<circle data-h="size" cx="${sz.x}" cy="${sz.y}" r="10" class="resize-handle" style="touch-action:none;cursor:nwse-resize"><title>ドラッグで大きさを変える</title></circle>`;
+  }
+  Hd.innerHTML=hh;
+  // 背景画像
+  const im=document.getElementById('custImg');
+  if(custImg){im.setAttribute('display','');im.setAttribute('href',custImg.url);im.setAttribute('x',custImg.x*SCALE);im.setAttribute('y',custImg.y*SCALE);im.setAttribute('width',custImg.w*SCALE);im.setAttribute('height',custImg.w*SCALE*custImg.aspect);im.setAttribute('opacity',custImg.op/100);}
+  else im.setAttribute('display','none');
+  custPanelSync();
+}
+function setCustImage(url,meta){
+  const img=new Image();
+  img.onload=()=>{
+    custImg={url,aspect:img.naturalHeight/img.naturalWidth,w:clampNum(meta&&meta.w,2,200,custW),x:clampNum(meta&&meta.x,-200,200,0),y:clampNum(meta&&meta.y,-200,200,0),op:clampNum(meta&&meta.op,10,100,60)};
+    syncImgInputs();renderCust();
+  };
+  img.onerror=()=>warn('画像を読み込めませんでした。','#c62828');
+  img.src=url;
+}
+function syncImgInputs(){if(!custImg)return;document.getElementById('ciW').value=custImg.w;document.getElementById('ciX').value=custImg.x;document.getElementById('ciY').value=custImg.y;document.getElementById('ciOp').value=custImg.op;}
+document.addEventListener('click',e=>{if(e.target&&e.target.id==='custSetStart'){setCustStartFromCar(true);if(!collisionAt(rearX,rearY,angle))warn('いまの位置を出発位置にしました（リセットでここに戻ります）。','#26733b');}});
+function custChanged(){invalidatePlan();custSave();renderCust();}
+var dragAtStart=true;
+function carAtStart(){const c=vehicleCenter();return Math.hypot(c.x-start.x,c.y-start.y)<1.5&&Math.abs(angle-start.angle)<0.02;}
+// 自由配置：走らせたあとに車を動かしても、出発位置（リセットで戻る場所）は変えない。出発位置は
+//   ・出発位置にある車をドラッグ／回転したとき　・「いまの位置を出発位置にする」を押したとき　に更新する。
+function setCustStartFromCar(force){
+  if(!isCust())return;
+  if(!force&&!dragAtStart){warn('車を動かしました。出発位置は変わりません（「位置・サイズをリセット」で出発位置に戻ります）。新しい出発位置にしたいときは「📍 いまの位置を出発位置にする」を押してください。','#8a5a00');return;}
+  const c=vehicleCenter();custStart={x:c.x,y:c.y,angle};Object.assign(start,custStart);invalidatePlan();custSave();
+  if(collisionAt(rearX,rearY,angle))warn('⚠ 操作対象車が壁や車に重なっています。位置をずらしてください。','#c62828');
+}
+function addCustObj(type){
+  const d=CUST_DEF[type], W=custW*SCALE, H=custH*SCALE;
+  // 画面の中央付近で、既存のものと重ならない場所を探す
+  let x=W/2,y=H/2;
+  for(let k=0;k<40;k++){
+    const t=k*0.9, cx=W/2+Math.cos(t)*k*14, cy=H/2+Math.sin(t)*k*10;
+    const o={x:cx,y:cy,a:type==='car'?Math.PI/2:0,width:d.w,length:d.l};
+    const cs=parkedCarCorners(o.x,o.y,o.a,o);
+    const hitPlayer=rectanglesOverlap(cs,carCorners(rearX,rearY,angle));
+    if(!hitPlayer&&!custObs.some(q=>rectanglesOverlap(cs,parkedCarCorners(q.x,q.y,q.a,q)))){x=cx;y=cy;break;}
+  }
+  if(custObs.length>=80){warn('置けるのは80個までです。','#b26a00');return;}
+  custObs.push({type,x,y,a:type==='car'?Math.PI/2:0,width:d.w,length:d.l});
+  custSel=custObs.length-1;custChanged();
+}
+for(const b of document.querySelectorAll('#custBox [data-add]'))b.addEventListener('click',()=>addCustObj(b.dataset.add));
+document.getElementById('custDel').addEventListener('click',()=>{if(custSel<0)return;custObs.splice(custSel,1);custSel=-1;custChanged();});
+document.getElementById('custDup').addEventListener('click',()=>{const o=custObs[custSel];if(!o||custObs.length>=80)return;custObs.push({...o,x:o.x+SCALE*0.8,y:o.y+SCALE*0.8});custSel=custObs.length-1;custChanged();});
+document.getElementById('custClear').addEventListener('click',()=>{if(!custObs.length)return;if(!confirm('置いたものをすべて削除します。よろしいですか？'))return;custObs=[];custSel=-1;custChanged();});
+document.addEventListener('keydown',e=>{if(!isCust()||custSel<0)return;const t=e.target&&e.target.tagName;if(t==='INPUT'||t==='SELECT'||t==='TEXTAREA')return;if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();custObs.splice(custSel,1);custSel=-1;custChanged();}});
+for(const [id,fn] of [['cW',(o,v)=>{o.width=clampNum(v,0.2,40,o.width);}],['cL',(o,v)=>{o.length=clampNum(v,0.2,40,o.length);}],['cA',(o,v)=>{o.a=-clampNum(v,-360,360,0)*Math.PI/180;}],['cX',(o,v)=>{o.x=clampNum(v,0,custW,o.x/SCALE)*SCALE;}],['cY',(o,v)=>{o.y=clampNum(v,0,custH,o.y/SCALE)*SCALE;}]]){
+  document.getElementById(id).addEventListener('change',e=>{const o=custObs[custSel];if(!o)return;fn(o,e.target.value);custChanged();});
+}
+for(const [id,key] of [['custMapW','W'],['custMapH','H']]){
+  document.getElementById(id).addEventListener('change',e=>{
+    if(key==='W')custW=Math.round(clampNum(e.target.value,10,60,custW));else custH=Math.round(clampNum(e.target.value,8,40,custH));
+    VIEW_W=custW*SCALE;custSave();invalidatePlan();applyRoad();
+  });
+}
+document.getElementById('custGrid').addEventListener('change',e=>{custGrid=e.target.checked;renderCust();});
+// 背景画像
+document.getElementById('custImgFile').addEventListener('change',e=>{
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  if(f.size>12*1024*1024){warn('画像が大きすぎます（12 MB まで）。','#c62828');return;}
+  const r=new FileReader();r.onload=()=>setCustImage(r.result,{w:custW,x:0,y:0,op:60});r.readAsDataURL(f);
+});
+for(const id of ['ciW','ciX','ciY','ciOp'])document.getElementById(id).addEventListener('input',()=>{
+  if(!custImg)return;
+  custImg.w=clampNum(document.getElementById('ciW').value,2,200,custImg.w);custImg.x=clampNum(document.getElementById('ciX').value,-200,200,custImg.x);
+  custImg.y=clampNum(document.getElementById('ciY').value,-200,200,custImg.y);custImg.op=clampNum(document.getElementById('ciOp').value,10,100,custImg.op);renderCust();
+});
+document.getElementById('ciDel').addEventListener('click',()=>{custImg=null;document.getElementById('custImgFile').value='';renderCust();});
+// 保存・読み込み
+document.getElementById('custSave').addEventListener('click',()=>{
+  const data={v:1,mapW:custW,mapH:custH,obs:custObs,start:custStart,img:custImg};
+  const blob=new Blob([JSON.stringify(data)],{type:'application/json'}), a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download='自由配置_'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+});
+document.getElementById('custLoad').addEventListener('click',()=>document.getElementById('custLoadFile').click());
+document.getElementById('custLoadFile').addEventListener('change',e=>{
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=()=>{
+    try{const j=JSON.parse(r.result);if(!j||!Array.isArray(j.obs))throw 0;
+      custImg=null;applyCustData(j,true);Object.assign(start,custStart);VIEW_W=custW*SCALE;resetPose();custSave();applyRoad();warn('配置を読み込みました。','#26733b');}
+    catch(_){warn('このファイルは読み込めませんでした（この画面で保存したファイルを選んでください）。','#c62828');}
+    e.target.value='';
+  };r.readAsText(f);
+});
+// ドラッグ操作（移動・向き・大きさ）
+let custDrag=null;
+parking.addEventListener('pointerdown',e=>{
+  if(!isCust())return;
+  const oi=e.target.closest&&e.target.closest('[data-oi]'), hd=e.target.closest&&e.target.closest('[data-h]');
+  const p=svgPoint(e);
+  if(hd&&custObs[custSel]){
+    e.preventDefault();e.stopPropagation();const o=custObs[custSel];
+    custDrag={id:e.pointerId,mode:hd.dataset.h,i:custSel};
+    try{parking.setPointerCapture(e.pointerId)}catch(_){}return;
+  }
+  if(oi){
+    e.preventDefault();e.stopPropagation();custSel=+oi.dataset.oi;const o=custObs[custSel];
+    custDrag={id:e.pointerId,mode:'move',i:custSel,dx:o.x-p.x,dy:o.y-p.y};renderCust();
+    try{parking.setPointerCapture(e.pointerId)}catch(_){}return;
+  }
+  if(e.target.id==='bgRect'||e.target.id==='custLayer'){if(custSel!==-1){custSel=-1;renderCust();}}
+},true);
+parking.addEventListener('pointermove',e=>{
+  if(!custDrag||e.pointerId!==custDrag.id)return;
+  e.preventDefault();
+  const o=custObs[custDrag.i];if(!o)return;const p=svgPoint(e), W=custW*SCALE, H=custH*SCALE;
+  if(custDrag.mode==='move'){o.x=Math.max(0,Math.min(W,p.x+custDrag.dx));o.y=Math.max(0,Math.min(H,p.y+custDrag.dy));}
+  else if(custDrag.mode==='rot'){
+    let na=Math.atan2(-(p.x-o.x),-(p.y-o.y));
+    const q=Math.PI/12, near=Math.round(na/q)*q;if(Math.abs(wrapA(na-near))<3*Math.PI/180)na=near;   // 15°刻みの近くで吸着
+    o.a=na;
+  }else{
+    const dx=p.x-o.x, dy=p.y-o.y, lat=dx*Math.cos(o.a)-dy*Math.sin(o.a), lon=dx*Math.sin(o.a)+dy*Math.cos(o.a);
+    o.width=Math.max(0.2,Math.min(40,+(2*Math.abs(lat)/SCALE).toFixed(2)));o.length=Math.max(0.2,Math.min(40,+(2*Math.abs(lon)/SCALE).toFixed(2)));
+  }
+  invalidatePlan();renderCust();
+});
+function endCustDrag(e){
+  if(!custDrag||e.pointerId!==custDrag.id)return;
+  custDrag=null;custSave();
+  if(collisionAt(rearX,rearY,angle))warn('⚠ 操作対象車が壁や車に重なっています。位置をずらしてください。','#c62828');
+}
+parking.addEventListener('pointerup',endCustDrag);
+parking.addEventListener('pointercancel',endCustDrag);
 // ---- 定規（距離を測る） ----
 // 地図の縮尺のような目盛り付きの線。両端をドラッグして伸ばし・縮め・回し、中央をドラッグして移動する。
 // 長さは実寸（m）で表示（40 SVG単位 = 1 m）。水平・垂直に近いときは、ぴったりに吸着する。
@@ -1051,9 +1694,9 @@ function getRotHandles(){   // 初回に作る（updateDisplay が初期化中�
 var rotDrag=null;
 function startRot(e){
   if(resizing)return;
-  e.preventDefault();e.stopPropagation();stopReplay();movement=0;stepView=false;
+  e.preventDefault();e.stopPropagation();pushHist();stopReplay();movement=0;stepView=false;
   const c=vehicleCenter(), p=svgPoint(e);
-  rotDrag={id:e.pointerId,cx:c.x,cy:c.y,a0:angle,p0:Math.atan2(p.y-c.y,p.x-c.x)};
+  rotDrag={id:e.pointerId,cx:c.x,cy:c.y,a0:angle,p0:Math.atan2(p.y-c.y,p.x-c.x)};dragAtStart=carAtStart();
   try{parking.setPointerCapture(e.pointerId)}catch(_){}
 }
 parking.addEventListener('pointermove',e=>{
@@ -1070,7 +1713,8 @@ parking.addEventListener('pointermove',e=>{
 });
 function endRotDrag(e){
   if(!rotDrag||e.pointerId!==rotDrag.id)return;
-  rotDrag=null;
+  rotDrag=null;setCustStartFromCar();
+  if(isCust()&&!dragAtStart)return;
   const c=vehicleCenter(),near=nearestDistance(c.x,c.y)<145;
   warn(near?'注意：周囲の車に接近しています（距離表示は概算）。':'向きを変えました。車体同士の接触は検出されていません。',near?'#b26a00':'#26733b');
 }
@@ -1080,8 +1724,8 @@ let carDrag=null;
 const playerCarEl=document.getElementById('playerCar');
 playerCarEl.addEventListener('pointerdown',e=>{
   if(resizing) return; selectedCar='player'; updateDisplay();
-  e.preventDefault();stopReplay();movement=0;stepView=false;
-  const p=svgPoint(e);carDrag={id:e.pointerId,px:p.x,py:p.y,rx:rearX,ry:rearY};
+  e.preventDefault();pushHist();stopReplay();movement=0;stepView=false;
+  const p=svgPoint(e);carDrag={id:e.pointerId,px:p.x,py:p.y,rx:rearX,ry:rearY};dragAtStart=carAtStart();
   try{parking.setPointerCapture(e.pointerId)}catch(_){}
   playerCarEl.style.cursor='grabbing';
 });
@@ -1095,7 +1739,8 @@ parking.addEventListener('pointermove',e=>{
 });
 function endCarDrag(e){
   if(!carDrag||e.pointerId!==carDrag.id)return;
-  carDrag=null;playerCarEl.style.cursor='grab';
+  carDrag=null;playerCarEl.style.cursor='grab';setCustStartFromCar();
+  if(isCust()&&!dragAtStart)return;   // 出発位置は変えなかった旨のメッセージを残す
   const c=vehicleCenter();warn(nearestDistance(c.x,c.y)<145?'注意：周囲の車に接近しています（距離表示は概算）。':'位置を移動しました。車体同士の接触は検出されていません。',nearestDistance(c.x,c.y)<145?'#b26a00':'#26733b');
 }
 parking.addEventListener('pointerup',endCarDrag);
@@ -1152,18 +1797,21 @@ parking.addEventListener('lostpointercapture',finishResize);
 // 反対側（下側）の駐車列は「車路の下端からの距離」で固定。車路が変わると列ごと移動する。
 function applyRoad(){
   invalidatePlan();
+  if(isAng())placeAng();
   const g=id=>document.getElementById(id), set=(id,o)=>{const e=g(id);for(const k in o)e.setAttribute(k,o[k]);};
-  const bottom=ROAD_TOP+roadH, H=isU()?UG.H:isPara()?PARA_H:bottom+ROW_H, c=ROAD_TOP+roadH/2;
-  if(isU())VIEW_W=UG.W; else if(isPara())VIEW_W=2*PARA_SW+roadH; else VIEW_W=560;
-  for(const id of ['roadLabel','roadArrow','roadEdge'])g(id).style.display=isU()?'none':'';
-  for(const id of ['topRow','bottomRow','roadRect'])g(id).style.display=isU()?'none':'';
-  if(!isU())g('bgRect').setAttribute('fill','#bcbcbc');
+  const bottom=ROAD_TOP+roadH, H=isCust()?custH*SCALE:isU()?UG.H:isPara()?PARA_H:bottom+(isAng()?ANG_BOT:ROW_H), c=ROAD_TOP+roadH/2;
+  if(isCust())VIEW_W=custW*SCALE; else if(isU())VIEW_W=UG.W; else if(isPara())VIEW_W=2*PARA_SW+roadH; else if(isAng())VIEW_W=angGeom().VW; else VIEW_W=perpW();
+  for(const id of ['roadLabel','roadArrow','roadEdge'])g(id).style.display=(isU()||isCust())?'none':'';
+  for(const id of ['topRow','bottomRow','roadRect'])g(id).style.display=(isU()||isCust())?'none':'';
+  if(!isU())g('bgRect').setAttribute('fill',isCust()?'#a9a9a9':'#bcbcbc');
+  g('custLayer').setAttribute('display',isCust()?'':'none');g('custHandles').setAttribute('display',isCust()?'':'none');
   g('uLayer').setAttribute('display',isU()?'':'none');
   if(isU())drawU();
   parking.setAttribute('viewBox',`0 0 ${VIEW_W} ${H}`);
   const cxm=VIEW_W/2;
   set('bgRect',{width:VIEW_W,height:H});
   if(isU()){ /* 描画は drawU() */ }
+  else if(isCust()){ renderCust(); }
   else if(isPara()){
     const ex=PARA_KX+roadH;
     set('topRow',{x:0,y:0,width:PARA_SW,height:H});
@@ -1176,27 +1824,36 @@ function applyRoad(){
     g('roadEdge').style.cursor='ew-resize';
     g('bottomLines').setAttribute('d','');
     const rc=PARA_KX+roadH/2;
+    g('roadLabel').textContent='車路';
     set('roadLabel',{x:rc,y:46});
     set('roadArrow',{d:`M${rc} 112V64 M${rc-8} 74L${rc} 64L${rc+8} 74`});
   }else{
     set('topRow',{x:0,y:0,width:VIEW_W,height:200});
     set('roadRect',{x:0,y:ROAD_TOP,width:VIEW_W,height:roadH});
-    set('bottomRow',{x:0,y:bottom,width:VIEW_W,height:ROW_H});
+    set('bottomRow',{x:0,y:bottom,width:VIEW_W,height:isAng()?ANG_BOT:ROW_H});
     set('kerbLine',{x1:0,x2:VIEW_W,y1:200,y2:200});
     set('roadEdgeLine',{x1:0,x2:VIEW_W,y1:bottom,y2:bottom});
     set('roadEdgeHit',{x:0,y:bottom-12,width:VIEW_W,height:24});
     set('roadGrip',{x:cxm-30,y:bottom-5,width:60,height:10});
     g('roadEdge').style.cursor='ns-resize';
-    g('bottomLines').setAttribute('d',[30,130,230,330,430,530].map(x=>`M${x} ${bottom}V${H}`).join(' '));
-    const L=Math.min(50,roadH/2-34), a0=c+12, a1=a0+L;
-    set('roadLabel',{x:cxm,y:c});
-    set('roadArrow',{d:`M${cxm} ${a0}V${a1} M${cxm-8} ${a1-9}L${cxm} ${a1}L${cxm+8} ${a1-9}`});
+    if(!isAng())g('bottomLines').setAttribute('d',[0,1,2,3,4,5].map(i=>`M${30+i*SLOT()} ${bottom}V${H}`).join(' '));
+    if(isAng()){
+      const ay=c+14, ax=cxm;
+      g('roadLabel').textContent='車路（一方通行：右向き）';
+      set('roadLabel',{x:ax,y:ay-12});
+      set('roadArrow',{d:`M${ax-50} ${ay}H${ax+50} M${ax+41} ${ay-7}L${ax+50} ${ay}L${ax+41} ${ay+7}`});
+    }else{
+      g('roadLabel').textContent='車路';
+      const L=Math.min(50,roadH/2-34), a0=c+12, a1=a0+L;
+      set('roadLabel',{x:cxm,y:c});
+      set('roadArrow',{d:`M${cxm} ${a0}V${a1} M${cxm-8} ${a1-9}L${cxm} ${a1}L${cxm+8} ${a1-9}`});
+    }
   }
-  if(!isPara()&&!isU())for(const i of [4,5,6,7,8]) otherCars[i].y=bottom+100;
-  if(typeof parkStyle!=='undefined'&&isEnter()){const oy=start.y;start.y=startPoseFor(parkStyle.value).y;
+  if(!isPara()&&!isU()&&!isAng()&&!isCust()){perpLayout();for(const i of [4,5,6,7,8]) otherCars[i].y=bottom+100;}
+  if(typeof parkStyle!=='undefined'&&(isEnter()||parkStyle.value==='angIn'||parkStyle.value==='angDownFront'||parkStyle.value==='angDownBack')){const oy=start.y;start.y=startPoseFor(parkStyle.value).y;
     const o=rearAxleForBodyCenter(start.x,oy,start.angle);if(Math.abs(rearX-o.x)<0.5&&Math.abs(rearY-o.y)<0.5&&Math.abs(angle-start.angle)<1e-6){const r=rearAxleForBodyCenter(start.x,start.y,start.angle);rearX=r.x;rearY=r.y;}}
   updateUInfo();
-  document.getElementById('roadSummary').textContent=isU()?'（Uターンでは設定欄で変更）':`${(roadH/SCALE).toFixed(1)} m`;
+  document.getElementById('roadSummary').textContent=isCust()?'（自由配置では「マップ」欄で変更）':isU()?'（Uターンでは設定欄で変更）':`${(roadH/SCALE).toFixed(1)} m`;
   updateDisplay();
 }
 // 車路を狭めた結果、操作対象車が反対側の車に重なってしまう場合は、その手前で止める。
@@ -1222,7 +1879,7 @@ function drawU(){
   h+=`<path d="${dash}" stroke="#fff" stroke-width="3" fill="none" stroke-dasharray="14 12"/>`;
   // 対向車線の進行方向（南向き）と案内文字
   const cxo=(G.xO+G.xE)/2;
-  h+=`<g stroke="#fff" stroke-width="3" fill="none" stroke-dasharray="6 5" opacity=".85"><path d="M${cxo} ${G.H-150}V${G.H-90} M${cxo-8} ${G.H-100}L${cxo} ${G.H-90}L${cxo+8} ${G.H-100}"/><path d="M${cxo} 40V100 M${cxo-8} 90L${cxo} 100L${cxo+8} 90"/></g>`;
+  h+=`<g stroke="#fff" stroke-width="3" fill="none" stroke-dasharray="6 5" opacity=".85"><path d="M${cxo} ${G.H-150}V${G.H-90} M${cxo-8} ${G.H-100}L${cxo} ${G.H-90}L${cxo+8} ${G.H-100}"/></g>`;
   h+=`<g fill="#fff" font-size="13" text-anchor="middle"><text x="${cxo}" y="${G.H-30}">対向車線（ここへ）</text><text x="${G.startX}" y="${G.H-30}">右折レーン</text><text x="${(G.xW+G.xC)/2-G.LW/2+0}" y="${G.H-30}" opacity=".0"></text></g>`;
   // 手前側の左の車線の案内（直進・左折）
   h+=`<g fill="#fff" font-size="12" text-anchor="middle" opacity=".85"><text x="${G.xW+G.LW/2}" y="${G.H-30}">直進・左折</text><text x="${W/2}" y="${G.boxT+G.BD/2}" opacity=".75">交差点</text></g>`;
@@ -1241,9 +1898,10 @@ function updateUInfo(){
   document.getElementById('uInfo').innerHTML=`ハンドル全開で1回で回りきるには、右折レーンの中心から外側（縁石）まで<b>約${n.wide.toFixed(1)} m</b>必要です。この設定は<b>約${avail.toFixed(1)} m</b>で、`+(d>=0?`<b style="color:#26733b">約${d.toFixed(1)} m の余裕</b>があります。`:`<b style="color:#c62828">約${(-d).toFixed(1)} m 足りません</b>（切り返しが必要）。`)+` 交差点内で前に必要な奥行きは約${n.deep.toFixed(1)} m。`;
 }
 function roadBlocked(h){
-  if(isU())return false;
+  if(isU()||isCust())return false;
   const player=carCorners(rearX,rearY,angle), bottom=ROAD_TOP+h;
   if(isPara())return player.some(q=>q.x>PARA_KX+h);
+  if(isAng()){const st=parkStyle.value;if(st==='angDownFront'||st==='angDownBack')return false;const G=angGeom();return otherCars.some(c=>c.row==='B'&&rectanglesOverlap(player,parkedCarCorners(c.x,G.cyBot(h),c.angle,c)));}
   return [4,5,6,7,8].some(i=>{const c=otherCars[i];return rectanglesOverlap(player,parkedCarCorners(c.x,bottom+100,c.angle,c));});
 }
 function moveRoadTo(target){
@@ -1330,11 +1988,13 @@ for(const key of Object.keys(tireInputs)){
   tireInputs[key].addEventListener('change',()=>{applyTireInput(key,true);tireInputs[key].value=({wb:params.wheelbase,len:params.length,fo:params.frontOverhang,ro:params.rearOverhang})[key].toFixed(2);});
 }
 const overlayBtn=document.getElementById('toggleOverlay'), showDimsBox=document.getElementById('showDims');
-function syncOverlayButton(){overlayBtn.textContent=showDimsBox.checked?'寸法・緑の丸を非表示にする':'寸法・緑の丸を表示する';}
+function syncOverlayButton(){overlayBtn.textContent=showDimsBox.checked?'寸法・丸を非表示にする':'寸法・丸を表示する';}
 showDimsBox.addEventListener('change',()=>{syncOverlayButton();updateDisplay();});
 overlayBtn.addEventListener('click',()=>{showDimsBox.checked=!showDimsBox.checked;syncOverlayButton();updateDisplay();});
 updateVehicleSummary();
+syncOverlayButton();
 applyRoad();
+updateSceneHelp();
 // 手順入力などを使っている間も車を見続けられるよう、駐車場図を画面の上に固定し、画面の高さに収まる大きさにする。
 function fitParking(){
   const panel=document.getElementById('viewPanel');
@@ -1349,6 +2009,184 @@ document.querySelectorAll('details.fold').forEach(d=>d.addEventListener('toggle'
 const _applyRoad=applyRoad;applyRoad=function(){_applyRoad();fitParking();renderRulers();};
 renderSteps();fitParking();
 requestAnimationFrame(animate);
+
+/* v41: on phones, move drive controls into a fixed bottom dock (same elements, so all listeners keep working) */
+(function(){
+  const dock=document.createElement('div');dock.id='ctrlDock';
+  const ids=['forward','reverse','stop','undo'];
+  const items=[document.querySelector('.steering-box')].concat(ids.map(i=>document.getElementById(i)));
+  const ph=items.map(()=>document.createComment('dock'));
+  const mq=window.matchMedia('(max-width:760px) and (not ((orientation:landscape) and (max-height:520px)))');
+  function apply(){
+    if(mq.matches){
+      if(dock.parentNode)return;
+      items.forEach((e,i)=>e.replaceWith(ph[i]));
+      items.forEach(e=>dock.appendChild(e));
+      document.body.appendChild(dock);document.body.classList.add('dock-on');
+    }else{
+      if(!dock.parentNode)return;
+      items.forEach((e,i)=>ph[i].replaceWith(e));
+      dock.remove();document.body.classList.remove('dock-on');
+    }
+  }
+  apply();(mq.addEventListener?mq.addEventListener('change',apply):mq.addListener(apply));
+})();
+
+
+
+/* v43: undo history + wheel trail */
+var hist=[], trail=[], trailOn=false, lastTr=null;
+try{trailOn=localStorage.getItem('parkSimTrailV2')==='on'}catch(e){}
+function pushHist(){
+  const h=hist[hist.length-1];
+  if(h&&Math.hypot(h.x-rearX,h.y-rearY)<0.5&&Math.abs(h.a-angle)<0.002)return;
+  hist.push({x:rearX,y:rearY,a:angle,t:trail.length});if(hist.length>60)hist.shift();
+  undoBtnState();
+}
+function undoBtnState(){const b=document.getElementById('undo');if(b)b.disabled=!hist.length;}
+function clearTrail(){trail=[];lastTr=null;const l=document.getElementById('trailLayer');if(l)l.innerHTML='';}
+function wheelWorld(){
+  const g=vehicleGeometry(),c=Math.cos(angle),sn=Math.sin(angle),out=[];
+  for(const [lx,ly] of [[-g.halfWidth,g.wheelbase],[g.halfWidth,g.wheelbase],[-g.halfWidth,0],[g.halfWidth,0]])
+    out.push(rearX+lx*c+ly*sn, rearY-lx*sn+ly*c);
+  return out;
+}
+let trailDirty=false;
+function recordTrail(){
+  if(lastTr&&Math.abs(lastTr[0]-rearX)<.01&&Math.abs(lastTr[1]-rearY)<.01&&Math.abs(lastTr[2]-angle)<1e-5)return;
+  const jump=lastTr&&Math.hypot(lastTr[0]-rearX,lastTr[1]-rearY)>60;
+  if(jump)trail.push(null);
+  if(!lastTr||jump||Math.hypot(lastTr[0]-rearX,lastTr[1]-rearY)>=2||Math.abs(lastTr[2]-angle)>0.02){
+    trail.push(wheelWorld());lastTr=[rearX,rearY,angle];if(trail.length>5000)trail.splice(0,500);trailDirty=true;
+  }
+  if(trailDirty){drawTrail();}
+}
+function drawTrail(){
+  trailDirty=false;const l=document.getElementById('trailLayer');if(!l)return;
+  const d=[[],[],[],[]];let brk=true;
+  for(const p of trail){if(!p){brk=true;continue;}
+    for(let k=0;k<4;k++)d[k].push((brk?'M':'L')+p[2*k].toFixed(1)+' '+p[2*k+1].toFixed(1));brk=false;}
+  const st=(k,col,w,o)=>`<path d="${d[k].join('')}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" opacity="${o}"/>`;
+  l.innerHTML=st(2,'#1f3f7a',3,.55)+st(3,'#1f3f7a',3,.55)+st(0,'#ffffff',2.4,.75)+st(1,'#ffffff',2.4,.75);
+}
+document.getElementById('undo').addEventListener('click',()=>{
+  const h=hist.pop();undoBtnState();if(!h)return;
+  stopReplay();movement=0;playingPath=false;stepView=false;
+  rearX=h.x;rearY=h.y;angle=h.a;
+  trail.length=Math.min(trail.length,h.t);lastTr=null;drawTrail();
+  warn('ひとつ前の位置に戻しました。','#26733b');updateDisplay();
+});
+(function(){
+  const b=document.getElementById('trailBtn');
+  function paint(){b.textContent=trailOn?'軌跡を隠す':'軌跡を表示';b.setAttribute('aria-pressed',trailOn?'true':'false');
+    document.getElementById('trailLayer').style.display=trailOn?'':'none';}
+  b.addEventListener('click',()=>{trailOn=!trailOn;try{localStorage.setItem('parkSimTrailV2',trailOn?'on':'off')}catch(e){}
+    paint();});
+  paint();
+})();
+/* v46: vehicle presets */
+var vehReady=false;
+const VEH_PRESETS={
+  sedan:{label:'セダン',width:1.80,wheelbase:2.70,frontOverhang:0.90,rearOverhang:0.90,maxSteeringAngle:30},
+  van:{label:'ミニバン',width:1.75,wheelbase:2.85,frontOverhang:0.95,rearOverhang:0.90,maxSteeringAngle:31},
+  kei:{label:'軽自動車',width:1.48,wheelbase:2.50,frontOverhang:0.45,rearOverhang:0.45,maxSteeringAngle:34}
+};
+const vehSel=document.getElementById('vehPreset');
+var forceCustom=false;
+function syncPreset(){
+  if(forceCustom){if(vehSel.value!=='custom')vehSel.value='custom';return;}
+  let key='custom';
+  for(const [k,v] of Object.entries(VEH_PRESETS)){
+    if(Math.abs(params.width-v.width)<0.015&&Math.abs(params.wheelbase-v.wheelbase)<0.015&&Math.abs(params.frontOverhang-v.frontOverhang)<0.015&&Math.abs(params.rearOverhang-v.rearOverhang)<0.015&&Math.abs(params.maxSteeringAngle-v.maxSteeringAngle)<0.3){key=k;break;}
+  }
+  if(vehSel.value!==key)vehSel.value=key;
+}
+function applyPreset(key,save){
+  const v=VEH_PRESETS[key];if(!v)return;
+  forceCustom=false;
+  const d={width:v.width,wheelbase:v.wheelbase,frontOverhang:v.frontOverhang,rearOverhang:v.rearOverhang,length:v.wheelbase+v.frontOverhang+v.rearOverhang,maxSteeringAngle:v.maxSteeringAngle};
+  Object.assign(DEFAULT_VEHICLE,d);Object.assign(params,d);
+  stopReplay();resetPose();   // 出発位置に置き直す（車体の中心を出発位置に合わせる）
+  if(typeof steps!=='undefined'&&steps.length){resim();renderSteps();}
+  if(typeof updateUInfo==='function')updateUInfo();
+  updateVehicleSummary();updateDisplay();
+  warn(`車種を「${v.label}」にしました（全長 ${d.length.toFixed(2)} m・幅 ${d.width.toFixed(2)} m）。`,'#26733b');
+  if(save){try{localStorage.setItem('parkSimVehV1',key)}catch(e){}}
+}
+vehSel.addEventListener('change',()=>{
+  if(vehSel.value!=='custom'){applyPreset(vehSel.value,true);return;}
+  // 「カスタム」：いまの寸法のまま、手動調整できる状態にする（かんたん表示なら詳細表示に切り替えて設定欄を出す）
+  forceCustom=true;
+  if(document.documentElement.classList.contains('simple'))document.getElementById('modeBtn').click();
+  document.getElementById('tirePanel').open=true;
+  const sd=document.getElementById('showDims');if(!sd.checked){sd.checked=true;sd.dispatchEvent(new Event('change'));}
+  updateVehicleSummary();updateDisplay();
+  warn('カスタムにしました。「タイヤ位置・寸法」の数値入力、または図の丸をドラッグして調整できます。','#26733b');
+  try{document.getElementById('settingsPanel').scrollIntoView({behavior:'smooth',block:'nearest'})}catch(e){}
+});
+vehReady=true;
+try{const k=localStorage.getItem('parkSimVehV1');if(k&&VEH_PRESETS[k]&&k!=='sedan'){applyPreset(k,false);}}catch(e){}
+syncPreset();
+
+/* v49: speed (low / mid / high) */
+(function(){
+  const seg=document.getElementById('speedSeg');if(!seg)return;
+  function apply(v,save){speed=+v;seg.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.sp===speed?'true':'false'));
+    if(save){try{localStorage.setItem('parkSimSpeedV1',String(v))}catch(e){}}}
+  seg.addEventListener('click',e=>{const b=e.target.closest('button');if(b)apply(b.dataset.sp,true)});
+  try{const v=localStorage.getItem('parkSimSpeedV1');if(v&&['0.28','0.55','1.1'].includes(v))apply(v,false)}catch(e){}
+})();
+
+/* v54: 隣の車との間隔 */
+(function(){
+  const inp=document.getElementById('sideGap');inp.value=(+sideGap).toFixed(1);
+  const sb=document.getElementById('sideBox');
+  const vis=()=>{const ok=!isPara()&&!isU()&&!isCust();sb.hidden=!ok;sb.style.display=ok?'flex':'none';const t=document.getElementById('slotWidthText');if(t)t.textContent=(SLOT()/SCALE_U).toFixed(1);};
+  vis();parkStyle.addEventListener('change',vis);
+  if(Math.abs(sideGap-0.7)>1e-6){   // 保存済みの間隔で開いたとき：図の幅・出発位置・隣の車を合わせる
+    if(isAng()){VIEW_W=angGeom().VW;buildAng();}else if(!isPara()&&!isU()&&!isCust())VIEW_W=perpW();
+    Object.assign(start,startPoseFor(parkStyle.value));resetPose();applyRoad();updateDisplay();
+  }
+  inp.addEventListener('change',()=>{
+    sideGap=Math.max(0.3,Math.min(2.5,parseFloat(inp.value)||0.7));inp.value=sideGap.toFixed(1);
+    try{localStorage.setItem('parkSimSideGapV1',String(sideGap))}catch(e){}
+    const t=document.getElementById('slotWidthText');if(t)t.textContent=(SLOT()/SCALE_U).toFixed(1);
+    stopReplay();
+    if(isAng()){VIEW_W=angGeom().VW;buildAng();}
+    else if(!isPara()&&!isU()&&!isCust())VIEW_W=perpW();
+    else return;
+    Object.assign(start,startPoseFor(parkStyle.value));resetPose();applyRoad();updateDisplay();
+    if(typeof updateSceneHelp==='function')updateSceneHelp();
+    warn(`隣の車との間隔を ${sideGap.toFixed(1)} m にしました（枠の幅 ${(SLOT()/SCALE_U).toFixed(2)} m）。`,'#26733b');
+  });
+})();
+/* v42: guide / simple-advanced mode / theme */
+(function(){
+  const root=document.documentElement;
+  const $=id=>document.getElementById(id);
+  function get(k,d){try{return localStorage.getItem(k)||d}catch(e){return d}}
+  function put(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+  // mode
+  function paintMode(){const simple=root.classList.contains('simple');$('modeBtn').textContent='表示：'+(simple?'かんたん':'詳細');$('modeBtn').setAttribute('aria-pressed',simple?'false':'true');if(typeof updateSceneHelp==='function')updateSceneHelp();}
+  $('modeBtn').addEventListener('click',()=>{root.classList.toggle('simple');put('parkSimModeV1',root.classList.contains('simple')?'simple':'detail');paintMode();});
+  paintMode();
+  // theme
+  const mq=matchMedia('(prefers-color-scheme: dark)');
+  const NAMES={auto:'🌓 自動',light:'☀ ライト',dark:'🌙 ダーク'};
+  function applyTheme(){const t=get('parkSimThemeV1','dark');const d=t==='dark'||(t==='auto'&&mq.matches);root.classList.toggle('dark',d);$('themeBtn').textContent=NAMES[t];
+    const m=document.querySelector('meta[name=theme-color]');if(m)m.content=d?'#14181f':'#eef1f5';}
+  $('themeBtn').addEventListener('click',()=>{const t=get('parkSimThemeV1','dark');put('parkSimThemeV1',t==='auto'?'light':t==='light'?'dark':'auto');applyTheme();});
+  (mq.addEventListener?mq.addEventListener('change',applyTheme):mq.addListener(applyTheme));
+  applyTheme();
+  // guide
+  const g=$('guide'),bd=$('guideBackdrop');let last=null;
+  function openGuide(){last=document.activeElement;g.hidden=false;bd.hidden=false;$('guideOk').focus();}
+  function closeGuide(){g.hidden=true;bd.hidden=true;put('parkSimGuideSeenV1','1');if(last&&last.focus)last.focus();}
+  $('helpBtn').addEventListener('click',openGuide);$('guideOk').addEventListener('click',closeGuide);bd.addEventListener('click',closeGuide);
+  g.addEventListener('click',e=>{if(e.target===g)closeGuide()});
+  document.addEventListener('keydown',e=>{if(!g.hidden&&e.key==='Escape')closeGuide()});
+  if(get('parkSimGuideSeenV1','')!=='1')openGuide();
+})();
 </script>
 </body>
 </html>
