@@ -3,15 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ハンドル操作シミュレーター｜出庫・入庫・縦列駐車・Uターン</title>
+<title>ハンドル操作シミュレーター｜車庫入れ・縦列駐車・出庫の練習（無料）</title>
 <meta name="description" content="ハンドルの切り方と車の動き・ぶつかり方を、真上から確かめられる無料のシミュレーター。出庫・入庫・縦列駐車・交差点でのUターンに対応。ハンドル角と距離を入力して、車間や道路の幅を変えて試せます。">
+<link rel="canonical" href="https://park-simulator.naotaro.jp/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%2314181f%27/%3E%3Crect x=%2722%27 y=%2712%27 width=%2720%27 height=%2740%27 rx=%278%27 fill=%27%234778c6%27/%3E%3Crect x=%2726%27 y=%2718%27 width=%2712%27 height=%278%27 rx=%272%27 fill=%27%23dce8fb%27/%3E%3C/svg%3E">
 <meta property="og:type" content="website">
-<meta property="og:title" content="ハンドル操作シミュレーター｜出庫・入庫・縦列駐車・Uターン">
+<meta property="og:url" content="https://park-simulator.naotaro.jp/">
+<meta property="og:site_name" content="ハンドル操作シミュレーター">
+<meta property="og:image" content="https://park-simulator.naotaro.jp/ogp.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="真上から見た駐車シーンと、ハンドル操作シミュレーターのタイトル">
+<meta property="og:title" content="ハンドル操作シミュレーター｜車庫入れ・縦列駐車・出庫の練習（無料）">
 <meta property="og:description" content="ハンドルの切り方と車の動き・ぶつかり方を、真上から確かめられる無料のシミュレーター。車間や道路の幅を変えて試せます。">
 <meta property="og:locale" content="ja_JP">
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://park-simulator.naotaro.jp/ogp.png">
 <meta name="twitter:title" content="ハンドル操作シミュレーター">
 <meta name="twitter:description" content="出庫・入庫・縦列駐車・Uターンで、ハンドルの切り方と車の動きを確かめられます。">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"ハンドル操作シミュレーター","url":"https://park-simulator.naotaro.jp/","inLanguage":"ja","applicationCategory":"EducationalApplication","operatingSystem":"Any (Web browser)","browserRequirements":"JavaScript が有効なブラウザ","description":"ハンドルの切り方と車の動き・ぶつかり方を真上から確かめられる無料のシミュレーター。出庫・入庫・縦列駐車・斜め駐車・Uターンに対応。","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"}}</script>
 <meta name="theme-color" content="#eef1f5">
 <script>(function(){try{var t=localStorage.getItem('parkSimThemeV1')||'dark';var d=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');var m=localStorage.getItem('parkSimModeV1')||'simple';if(m==='simple')document.documentElement.classList.add('simple')}catch(e){document.documentElement.classList.add('dark','simple')}})();</script>
 <style>
@@ -227,6 +238,15 @@ html.dark .guide-tip{background:#222b38;color:#c3cddb}
 .seg button[aria-pressed=true]{background:var(--blue);color:#fff;font-weight:700}
 html.dark .seg{background:#262e3a;border-color:#3a4555}html.dark .seg-label{color:#a3afc0}html.dark .seg button{border-left-color:#3a4555;color:#e6ebf2;background:transparent}html.dark .seg button[aria-pressed=true]{background:#3f6fb5;color:#fff}
 @media(orientation:landscape) and (max-height:520px){.seg button{padding:5px 10px}}
+
+.about{max-width:900px;margin:28px auto 8px;padding:0 4px;color:#3e4958;font-size:14px;line-height:1.8}
+.about h2{font-size:17px;margin:22px 0 6px}
+.about ol,.about ul{padding-left:1.4em;margin:6px 0}
+.about details{background:#fff;border:1px solid #d9dee7;border-radius:10px;padding:8px 12px;margin:6px 0}
+.about summary{cursor:pointer;font-weight:650}
+.about details p{margin:6px 0 2px}
+.site-foot{max-width:900px;margin:18px auto 24px;padding:12px 4px 0;border-top:1px solid #d9dee7;color:#6b7686;font-size:12px;text-align:center}
+html.dark .about{color:#b8c3d2}html.dark .about details{background:#1c222c;border-color:#303a49}html.dark .site-foot{border-top-color:#303a49;color:#8795a8}
 </style>
 </head>
 <body>
@@ -489,6 +509,28 @@ html.dark .seg{background:#262e3a;border-color:#3a4555}html.dark .seg-label{colo
   <p class="small">ご利用にあたって：これは学習用の簡易シミュレーターです。実際の運転の安全や、道路交通法上の可否を保証するものではありません。車体は長方形として接触を判定し、タイヤ・ミラー・車体形状、路面や速度の影響、左右のタイヤの角度差などは再現していません。表示される手順や数値は目安です。実際の運転では目視で安全を確認し、交通ルールに従ってください。</p>
   <!-- 作者名・連絡先（問い合わせ先）を入れる場合は、この下に <p class="small">…</p> を追加してください -->
 </main>
+<section class="about" aria-labelledby="aboutTtl">
+  <h2 id="aboutTtl">このシミュレーターについて</h2>
+  <p>車庫入れや縦列駐車、駐車場からの出庫で、「ハンドルをどれだけ切ると、車がどう動くか」を真上から確かめられる無料のツールです。ペーパードライバーの方や、運転の練習中の方が、安全な画面の上で何度でも試せます。</p>
+  <h2>使い方（3ステップ）</h2>
+  <ol>
+    <li>「場面」から、出庫・入庫・縦列駐車・斜め駐車・Uターンなどを選びます。</li>
+    <li>車を動かしたり、ハンドル角と距離を入力したりして、走らせます。</li>
+    <li>ぶつかった場所や車の通った跡を見て、切り方や下がる距離を調整します。</li>
+  </ol>
+  <h2>できること</h2>
+  <ul>
+    <li>隣の車との間隔、道路の幅、車のサイズ（セダン・ミニバン・軽自動車）を変えて試せます。</li>
+    <li>自由配置モードで、自宅の駐車スペースに近い状況を作れます。</li>
+    <li>スマホ・タブレット・パソコンのどれでも使えます。登録やインストールは不要です。</li>
+  </ul>
+  <h2>よくある質問</h2>
+  <details><summary>料金はかかりますか？</summary><p>無料でお使いいただけます。</p></details>
+  <details><summary>入力した内容や設定は、どこかに送られますか？</summary><p>設定はお使いの端末のブラウザ内に保存されるだけで、外部のサーバーには送信されません。</p></details>
+  <details><summary>実際の運転と同じ動きになりますか？</summary><p>一般的な車の動きを簡略化したモデルで計算しています。路面やタイヤ、車種による違いは反映していないため、練習・理解の補助としてご利用ください。実際の運転では、周囲の安全確認を必ず行ってください。</p></details>
+</section>
+<footer class="site-foot">© ハンドル操作シミュレーター ｜ 本ツールは運転技術の習得を保証するものではありません。</footer>
+
 <div id="guide" role="dialog" aria-modal="true" aria-labelledby="guideTitle" hidden>
   <div class="guide-card">
     <h2 id="guideTitle">はじめての方へ：3ステップで試せます</h2>
